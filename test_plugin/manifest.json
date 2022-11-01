@@ -6,5 +6,8 @@
   "editorType": [
     "figma",
     "figjam"
+  ],
+  "permissions": [
+    "activeusers"
   ]
 }
