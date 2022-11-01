@@ -111,6 +111,15 @@ function endEstimateHandsStats() {
   }
 }
 
+function distance(p1, p2) {
+  return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+}
+
+const ws = new WebSocket('ws://localhost:8080');
+
+// { [0]: null | { id: "...", coords: [[x, y], ...] } }
+let allPoints = {};
+
 async function renderResult() {
   if (camera.video.readyState < 2) {
     await new Promise((resolve) => {
@@ -150,6 +159,42 @@ async function renderResult() {
   // which shouldn't be rendered.
   if (hands && hands.length > 0 && !STATE.isModelChanged) {
     camera.drawResults(hands);
+
+    for (const [handIndex, hand] of hands.entries()) {
+      if (hand.keypoints == null) {
+        allPoints[handIndex] = null;
+        continue;
+      }
+
+      const indexDip = hand.keypoints[7];
+      const indexTip = hand.keypoints[8];
+      const middleTip = hand.keypoints[12];
+
+      if (distance(indexTip, middleTip) <= 3 * distance(indexTip, indexDip)) {
+        allPoints[handIndex] = null;
+        continue;
+      }
+
+      if (allPoints[handIndex] == null) {
+        const id = Math.floor(Math.random() * 1000000);
+        allPoints[handIndex] = { id, points: [] };
+      }
+
+      const points = allPoints[handIndex].points;
+
+      points.push([indexTip.x, indexTip.y]);
+
+      ws.send(JSON.stringify(allPoints[handIndex]));
+
+      camera.ctx.beginPath();
+      camera.ctx.moveTo(...points[0]);
+      for (const point of points.slice(1)) {
+        camera.ctx.lineTo(...point);
+      }
+      camera.ctx.stroke();
+    }
+  } else if (!hands || hands.length === 0) {
+    allPoints = {};
   }
 }
 
@@ -164,14 +209,7 @@ async function renderPrediction() {
 };
 
 async function app() {
-  // Gui content will change depending on which model is in the query string.
-  const urlParams = new URLSearchParams(window.location.search);
-  if (!urlParams.has('model')) {
-    alert('Cannot find model in the query string.');
-    return;
-  }
-
-  await setupDatGui(urlParams);
+  await setupDatGui(new Map([["model", "mediapipe_hands"]]));
 
   stats = setupStats();
 
