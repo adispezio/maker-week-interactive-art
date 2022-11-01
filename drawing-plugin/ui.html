@@ -1,0 +1,13 @@
+<script>
+const socket = new WebSocket('ws://localhost:8081');
+
+socket.addEventListener('message', function message(event) {
+  const reader = new FileReader();
+  reader.addEventListener('loadend', (e) => {
+    const message = JSON.parse(e.srcElement.result);
+    console.log('received: ', message);
+    parent.postMessage({ pluginMessage: { type: 'ws-message', ...message }}, "*");
+  });
+  reader.readAsText(event.data);
+});
+</script>
