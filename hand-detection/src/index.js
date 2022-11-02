@@ -115,7 +115,7 @@ function distance(p1, p2) {
   return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
 }
 
-const ws = new WebSocket('ws://localhost:8080');
+const ws = new WebSocket('ws://localhost:16001');
 
 // { [0]: null | { id: "...", coords: [[x, y], ...] } }
 let allPoints = {};

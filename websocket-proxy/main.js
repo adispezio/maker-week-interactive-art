@@ -1,11 +1,14 @@
 const WebSocket = require('ws')
 
-const localServer = new WebSocket.Server({ port: 8080 })
-const pluginServer = new WebSocket.Server({ port: 8081 })
+const externalPort = 16001;
+const pluginPort = 16002;
+
+const externalServer = new WebSocket.Server({ port: externalPort })
+const pluginServer = new WebSocket.Server({ port: pluginPort })
 
 let pluginSockets = [];
 
-localServer.on('connection', ws => {
+externalServer.on('connection', ws => {
   ws.on('message', message => {
     for (const pluginSocket of pluginSockets) {
       pluginSocket.send(message);
@@ -20,3 +23,7 @@ pluginServer.on('connection', ws => {
     pluginSockets = pluginSockets.filter(socket => socket !== ws);
   });
 })
+
+console.log(
+  `Listening on localhost:${externalPort} and localhost:${pluginPort}...`
+);
