@@ -192,6 +192,8 @@ class FlyingNode {
     if (!this.interactingPresences.has(presence.node.id) && distBetween <= presenceR + thisNodeR) {
       this.interactingPresences.add(presence.node.id)
       this.node.fills = [{ "type": "SOLID", "color": HSBToRGB(360 * Math.random(), 100, 50)}]
+      this.vx = lerp(this.vx, presence.vx, 0.5)
+      this.vy = lerp(this.vy, presence.vy, 0.5)
     } else if (this.interactingPresences.has(presence.node.id) && distBetween > presenceR + thisNodeR + tolerance) {
       this.interactingPresences.delete(presence.node.id)
     }
