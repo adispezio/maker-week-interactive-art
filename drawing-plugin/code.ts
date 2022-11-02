@@ -10,8 +10,16 @@ const presenceCircleSize = 15;
 const lineIdMap: Record<number, string> = {};
 const handIdMap: Record<number, string> = {};
 
+// Maps from msg ID to a random color.
+type RGBType = {
+  r: number,
+  g: number,
+  b: number,
+}
+const msgIdToRandomColor: Record<number, RGBType> = {};
+
 type Message =
-  | { type: "line"; id: number; points: Array<[number, number]> }
+  | { type: "line"; id: number; handId: number; points: Array<[number, number]> }
   | { type: "presence"; id: number; point: [number, number] }
   | { type: "presence"; id: number; gone: true };
 
@@ -22,7 +30,37 @@ function cameraPointToFigmaPoint(point: [number, number]): [number, number] {
   ];
 }
 
+const getRandomColor = () => {
+  const r = Math.random();
+  const g = Math.random();
+  const b = Math.random();
+  return { r, g, b }
+}
+
+const msgToHandId = (msg: Message) => {
+  if (msg.type === "presence") return msg.id;
+  if (msg.type === "line") return msg.handId;
+}
+
+const msgToRandomColor = (msg: Message): RGBType => {
+  const handId = msgToHandId(msg);
+  if (handId == null) return {
+    r: 1,
+    g: 1,
+    b: 1,
+  };
+
+  const color = msgIdToRandomColor[handId];
+  if (color) return color;
+
+  const randomColor = getRandomColor();
+  msgIdToRandomColor[handId] = randomColor;
+  return randomColor;
+}
+
 figma.ui.onmessage = (msg: Message) => {
+  const randomColor = msgToRandomColor(msg);
+
   if (msg.type === "presence") {
     let ellipse;
 
@@ -35,7 +73,7 @@ figma.ui.onmessage = (msg: Message) => {
       ellipse.fills = [
         {
           type: "SOLID",
-          color: { r: 1, g: 0, b: 0 },
+          color: randomColor,
         },
       ];
       handIdMap[msg.id] = ellipse.id;
@@ -53,7 +91,6 @@ figma.ui.onmessage = (msg: Message) => {
 
   if (msg.type === "line") {
     let vector;
-
     // If we previously created a vector for the same line, update it
     if (lineIdMap[msg.id] != null) {
       vector = figma.getNodeById(lineIdMap[msg.id]) as VectorNode;
@@ -64,7 +101,7 @@ figma.ui.onmessage = (msg: Message) => {
       vector.strokes = [
         {
           type: "SOLID",
-          color: { r: 1, g: 0, b: 0 },
+          color: randomColor,
         },
       ];
       lineIdMap[msg.id] = vector.id;

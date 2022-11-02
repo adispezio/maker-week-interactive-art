@@ -123,7 +123,7 @@ export function handleFrame(hands: Array<Hand>, ctx: CanvasRenderingContext2D) {
 
     // Send message containing this line's updated geometry
     ws.send(
-      JSON.stringify({ type: "line", id: line.id, points: smoothedPoints })
+      JSON.stringify({ type: "line", id: line.id, handId: handIndex, points: smoothedPoints })
     );
 
     // Render debug visualization
