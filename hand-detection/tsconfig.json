@@ -2,6 +2,8 @@
   "compilerOptions": {
     "lib": ["ES2021", "dom"],
     "noEmit": true,
-    "target": "ES2015"
+    "target": "ES2015",
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
   }
 }

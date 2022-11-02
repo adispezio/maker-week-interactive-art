@@ -15,6 +15,7 @@
     "@tensorflow/tfjs-backend-webgl": "^3.9.0",
     "@tensorflow/tfjs-converter": "^3.9.0",
     "@tensorflow/tfjs-core": "^3.9.0",
+    "lodash": "^4.17.21",
     "scatter-gl": "0.0.8"
   },
   "scripts": {
