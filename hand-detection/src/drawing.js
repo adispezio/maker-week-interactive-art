@@ -56,6 +56,17 @@ export function handleFrame(hands, ctx) {
     const indexTip = hand.keypoints[8];
     const middleTip = hand.keypoints[12];
 
+    // Regardless of whether they're gesturing, send a message containing the
+    // indexTip's location for presence purposes
+    ws.send(
+      // TODO: Add stable hand id
+      JSON.stringify({
+        type: "presence",
+        id: handIndex,
+        point: [indexTip.x, indexTip.y],
+      })
+    );
+
     if (distance(indexTip, middleTip) <= 3 * distance(indexTip, indexDip)) {
       allLines[handIndex] = null;
       continue;
