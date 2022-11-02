@@ -1,4 +1,8 @@
-let myNodes: RectangleNode[] = []
+// Parameters
+const PEN_DIAMETER = 10
+const PEN_TRAIL_LENGTH = 50
+
+let frame: FrameNode
 
 const idToLastNumPoints = {}
 const bounds = figma.viewport.bounds
@@ -9,8 +13,12 @@ async function onPointsMessage({ id, points }: { id: string, points: number[][] 
     points = points.slice(idToLastNumPoints[id])
   }
   idToLastNumPoints[id] = numPoints
+
+  points = simplify(points, 4, true)
+  // points = chaikinSmooth(points)
   points.forEach(([x, y]) => {
-    drawPoint({ x, y })
+    // x-axis is flipped
+    drawPoint({ x: -x, y })
   })
 }
 figma.ui.onmessage = ({id, points, type}: {id: string, points: number[][], type: string}) => {
@@ -20,40 +28,27 @@ figma.ui.onmessage = ({id, points, type}: {id: string, points: number[][], type:
 }
 
 async function setup() {
-  const numberOfRectangles = 1
-  const nodes: RectangleNode[] = []
-
-  // for (let i = 0; i < numberOfRectangles; i++) {
-  //   const rect = figma.createRectangle()
-  //   rect.x = i * 150
-  //   rect.fills = [{ type: "SOLID", color: { r: 1, g: 0.5, b: 0 } }]
-  //   figma.currentPage.appendChild(rect)
-  //   nodes.push(rect)
-  // }
-
-  // figma.currentPage.selection = nodes
-  // figma.viewport.scrollAndZoomIntoView(nodes)
+  // const numberOfRectangles = 1
+  frame = figma.createFrame()
 
   await new Promise(r => setTimeout(r, 0))
-
-  myNodes = nodes
 }
 
-let i = 0
 const myPenCircles: EllipseNode[] = []
 async function draw() {
   clearOldPoints()
 }
 
 const drawPoint = ({ x, y }: { x: number, y: number }) => {
-  const CIRCLE_DIAMETER = 10
+  const CIRCLE_DIAMETER = PEN_DIAMETER
 
+  const { x: viewportX, y: viewportY, width: viewportWidth, height: viewportHeight } = bounds
   const penCircles: EllipseNode[] = myPenCircles
 
   clearOldPoints()
 
-  const nextCircleX = x - CIRCLE_DIAMETER/2
-  const nextCircleY = y - CIRCLE_DIAMETER/2
+  const nextCircleX = x
+  const nextCircleY = y
   const prevCircleX = penCircles[penCircles.length-1]?.x ?? nextCircleX
   const prevCircleY = penCircles[penCircles.length-1]?.y ?? nextCircleY
 
@@ -66,17 +61,23 @@ const drawPoint = ({ x, y }: { x: number, y: number }) => {
     const circle = figma.createEllipse()
     circle.resize(CIRCLE_DIAMETER, CIRCLE_DIAMETER)
 
-    circle.x = lerp(prevCircleX + CIRCLE_DIAMETER/2, nextCircleX, i / circlesNeededToCover)
-    circle.y = lerp(prevCircleY + CIRCLE_DIAMETER/2, nextCircleY, i / circlesNeededToCover)
+    circle.x = lerp(prevCircleX, nextCircleX, i / circlesNeededToCover)
+    circle.y = lerp(prevCircleY, nextCircleY, i / circlesNeededToCover)
 
-    circle.fills = [{ type: "SOLID", color: { r: 1, g: 0.5, b: 0 } }]
+    const xPercent = (nextCircleX - viewportX) / (viewportWidth)
+    const hue = lerp(0, 360, xPercent)
+    const brightness = 50 // lerp(viewportY, viewportY + viewportHeight, nextCircleY)
+    const color = HSBToRGB(hue, 100, brightness)
+
+    circle.fills = [{ type: "SOLID", color }]
     figma.currentPage.appendChild(circle)
     penCircles.push(circle)
   }
 }
 
+// Delete old points to create the "trail" effect
 const clearOldPoints = () => {
-  const MAX_DOTS_IN_PEN = 50
+  const MAX_DOTS_IN_PEN = PEN_TRAIL_LENGTH
   const penCircles: EllipseNode[] = myPenCircles
 
   while (penCircles.length >= MAX_DOTS_IN_PEN) {
@@ -85,21 +86,12 @@ const clearOldPoints = () => {
   }
 }
 
-const drawCursorTrail = () => {
-  const nodes: RectangleNode[] = myNodes
-  const penCircles: EllipseNode[] = myPenCircles
-
-  if (i < 250) nodes[0].x += 2
-  else nodes[0].x -= 2
-
-  nodes[0].fills = [{ type: "SOLID", color: HSBToRGB(i * (360 / 500), 100, 50) }]
-  
+// Draw points following the cursor
+const drawCursorPoints = () => {  
   if (figma.activeUsers[0].position) {
     const { x: mouseX, y: mouseY } = figma.activeUsers[0].position
     drawPoint({ x: mouseX, y: mouseY })
   }
-
-  i = (i + 1) % 500
 }
 
 const lerp = (v0: number, v1: number, t: number): number => {
@@ -217,6 +209,29 @@ const simplify = (function () {
 
   return simplify;
 })()
+
+function chaikinSmooth(input: any) {
+  let output;
+
+  if (!Array.isArray(output)) output = [];
+
+  if (input.length > 0) output.push(copy([0, 0], input[0]));
+  for (var i = 0; i < input.length - 1; i++) {
+    var p0 = input[i];
+    var p1 = input[i + 1];
+    var p0x = p0[0],
+      p0y = p0[1],
+      p1x = p1[0],
+      p1y = p1[1];
+
+    var Q = [0.75 * p0x + 0.25 * p1x, 0.75 * p0y + 0.25 * p1y];
+    var R = [0.25 * p0x + 0.75 * p1x, 0.25 * p0y + 0.75 * p1y];
+    output.push(Q);
+    output.push(R);
+  }
+  if (input.length > 1) output.push(copy([0, 0], input[input.length - 1]));
+  return output;
+}
 
 figma.showUI(__html__)
 figma.ui.hide()
