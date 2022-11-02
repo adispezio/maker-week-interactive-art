@@ -194,7 +194,7 @@ export function handleFrame(
   }
 
   for (const [tfHandIndex, tfHand] of tfHands.entries()) {
-    const indexTip = tfHand.keypoints[KeyPointID.IndexFingerTip];
+    const indexBase = tfHand.keypoints[KeyPointID.IndexFingerMcp];
     const indexDip3D = tfHand.keypoints3D[KeyPointID.IndexFingerDip];
     const indexTip3D = tfHand.keypoints3D[KeyPointID.IndexFingerTip];
     const middleTip3D = tfHand.keypoints3D[KeyPointID.MiddleFingerTip];
@@ -206,7 +206,7 @@ export function handleFrame(
       const id = nextHandId++;
       handsById[id] = {
         id,
-        point: [indexTip.x, indexTip.y],
+        point: [indexBase.x, indexBase.y],
         lastSeenFrameId: frameId,
         line: null,
       };
@@ -216,12 +216,12 @@ export function handleFrame(
     }
 
     // Regardless of whether they're gesturing, send a message containing the
-    // indexTip's location for presence purposes.
+    // indexBase's location for presence purposes.
     ws.send(
       JSON.stringify({
         type: "presence",
         id: hand.id,
-        point: [indexTip.x, indexTip.y],
+        point: [indexBase.x, indexBase.y],
       })
     );
 
@@ -252,7 +252,7 @@ export function handleFrame(
       };
     }
 
-    hand.line.points.push([indexTip.x, indexTip.y]);
+    hand.line.points.push([indexBase.x, indexBase.y]);
     hand.line.lastSeenFrameId = frameId;
 
     let smoothedPoints = hand.line.points;
