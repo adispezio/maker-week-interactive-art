@@ -22,10 +22,43 @@ type Hand = {
   handedness: "Left" | "Right";
 };
 
+enum KeyPointID {
+  Wrist = 0,
+  ThumbCmc,
+  ThumbMcp,
+  ThumbIp,
+  ThumbTip,
+  IndexFingerMcp,
+  IndexFingerPip,
+  IndexFingerDip,
+  IndexFingerTip,
+  MiddleFingerMcp,
+  MiddleFingerPip,
+  MiddleFingerDip,
+  MiddleFingerTip,
+  RingFingerMcp,
+  RingFingerPip,
+  RingFingerDip,
+  RingFingerTip,
+  PinkyFingerMcp,
+  PinkyFingerPip,
+  PinkyFingerDip,
+  PinkyFingerTip,
+}
+
 const ws = new WebSocket("ws://localhost:16001");
 
 function distance(p1: { x: number; y: number }, p2: { x: number; y: number }) {
   return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
+}
+
+function distance3D(
+  p1: { x: number; y: number; z: number },
+  p2: { x: number; y: number; z: number }
+) {
+  return Math.sqrt(
+    (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2 + (p1.z - p2.z) ** 2
+  );
 }
 
 function copyPoint(out: [number, number], p: [number, number]) {
@@ -64,9 +97,6 @@ let prevHandCount = 0;
 
 export function handleFrame(hands: Array<Hand>, ctx: CanvasRenderingContext2D) {
   hands = (hands || []).filter((hand) => Object.keys(hand).length > 0);
-  if (hands.length > 0) {
-    console.log(hands);
-  }
 
   if (hands.length < prevHandCount) {
     for (let handIndex = hands.length; handIndex < prevHandCount; handIndex++) {
@@ -88,9 +118,11 @@ export function handleFrame(hands: Array<Hand>, ctx: CanvasRenderingContext2D) {
       continue;
     }
 
-    const indexDip = hand.keypoints[7];
-    const indexTip = hand.keypoints[8];
-    const middleTip = hand.keypoints[12];
+    const indexTip = hand.keypoints[KeyPointID.IndexFingerTip];
+
+    const indexDip3D = hand.keypoints3D[KeyPointID.IndexFingerDip];
+    const indexTip3D = hand.keypoints3D[KeyPointID.IndexFingerTip];
+    const middleTip3D = hand.keypoints3D[KeyPointID.MiddleFingerTip];
 
     // Regardless of whether they're gesturing, send a message containing the
     // indexTip's location for presence purposes
@@ -103,7 +135,10 @@ export function handleFrame(hands: Array<Hand>, ctx: CanvasRenderingContext2D) {
       })
     );
 
-    if (distance(indexTip, middleTip) <= 3 * distance(indexTip, indexDip)) {
+    if (
+      distance3D(indexTip3D, middleTip3D) <=
+      3 * distance(indexTip3D, indexDip3D)
+    ) {
       allLines[handIndex] = null;
       continue;
     }
