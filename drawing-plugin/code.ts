@@ -8,7 +8,7 @@ const presenceCircleSize = 15;
 
 // Maps from remote id -> Figma id
 const lineIdMap: Record<number, string> = {};
-const handIdMap: Record<number, string> = {};
+const handIdMap: Record<number, Presence> = {};
 
 // Maps from msg ID to a random color.
 type RGBType = {
@@ -62,31 +62,24 @@ figma.ui.onmessage = (msg: Message) => {
   const randomColor = msgToRandomColor(msg);
 
   if (msg.type === "presence") {
-    let ellipse: EllipseNode;
+    let presence: Presence;
 
     // If we previously created a circle for the same hand, update it
     if (handIdMap[msg.id] != null) {
-      ellipse = figma.getNodeById(handIdMap[msg.id]) as EllipseNode;
+      presence = handIdMap[msg.id];
     } else {
-      ellipse = figma.createEllipse();
-      ellipse.resize(presenceCircleSize, presenceCircleSize);
-      ellipse.fills = [
-        {
-          type: "SOLID",
-          color: randomColor,
-        },
-      ];
-      handIdMap[msg.id] = ellipse.id;
+      presence = new Presence(randomColor)
+      handIdMap[msg.id] = presence
     }
 
     if ("gone" in msg) {
-      ellipse.remove();
+      presence.node.remove();
       delete handIdMap[msg.id];
     } else {
       const [x, y] = cameraPointToFigmaPoint(msg.point);
-      ellipse.x = bounds.x + x - presenceCircleSize / 2;
-      ellipse.y = bounds.y + y - presenceCircleSize / 2;
-      flying.map(node => node.interactWithPresenceAt(bounds.x + x, bounds.y + y, presenceCircleSize / 2, ellipse.id))
+      presence.setX(bounds.x + x - presenceCircleSize / 2);
+      presence.setY(bounds.y + y - presenceCircleSize / 2);
+      flying.map(node => node.interactWithPresenceAt(presence))
     }
   }
 
@@ -128,6 +121,37 @@ figma.ui.onmessage = (msg: Message) => {
   }
 };
 
+class Presence {
+  node: EllipseNode
+  vx: number = 0
+  vy: number = 0
+
+  constructor(color: {r: number, g: number, b: number}) {
+    this.node = figma.createEllipse();
+    this.node.resize(presenceCircleSize, presenceCircleSize);
+    this.node.fills = [
+      {
+        type: "SOLID",
+        color,
+      },
+    ];
+  }
+
+  setX(x: number) {
+    const rawVx = x - this.node.x
+    const smoothedVx = lerp(this.vx, rawVx, 0.1)
+    this.vx = smoothedVx
+    this.node.x = x
+  }
+
+  setY(y: number) {
+    const rawVy = y - this.node.y
+    const smoothedVy = lerp(this.vy, rawVy, 0.1)
+    this.vy = smoothedVy
+    this.node.y = y
+  }
+}
+
 class FlyingNode {
   node: DefaultShapeMixin
   interactingPresences: Set<string> = new Set()
@@ -155,15 +179,21 @@ class FlyingNode {
     this.node.y = bounds.y + (this.node.y + this.vy - bounds.y) % bounds.height
   }
 
-  interactWithPresenceAt(x: number, y: number, r: number, handId: string) {
+  interactWithPresenceAt(presence: Presence) {
+    const presenceR = presence.node.width / 2
     const thisNodeR = this.node.width / 2
-    const distBetween = dist(x, y, this.node.x + thisNodeR, this.node.y + thisNodeR)
+    const distBetween = dist(
+      presence.node.x + presenceR,
+      presence.node.y + presenceR,
+      this.node.x + thisNodeR,
+      this.node.y + thisNodeR
+    )
     const tolerance = 10
-    if (!this.interactingPresences.has(handId) && distBetween <= r + thisNodeR) {
-      this.interactingPresences.add(handId)
+    if (!this.interactingPresences.has(presence.node.id) && distBetween <= presenceR + thisNodeR) {
+      this.interactingPresences.add(presence.node.id)
       this.node.fills = [{ "type": "SOLID", "color": HSBToRGB(360 * Math.random(), 100, 50)}]
-    } else if (this.interactingPresences.has(handId) && distBetween > r + thisNodeR + tolerance) {
-      this.interactingPresences.delete(handId)
+    } else if (this.interactingPresences.has(presence.node.id) && distBetween > presenceR + thisNodeR + tolerance) {
+      this.interactingPresences.delete(presence.node.id)
     }
   }
 
@@ -194,6 +224,10 @@ async function loop() {
   }
 
   figma.closePlugin()
+}
+
+const lerp = (v0: number, v1: number, t: number): number => {
+  return v0*(1-t)+v1*t
 }
 
 const dist = (x0: number, y0: number, x1: number, y1: number): number => {
