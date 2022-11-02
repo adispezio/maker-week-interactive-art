@@ -31,7 +31,7 @@ import { setupDatGui } from "./option_panel";
 import { STATE } from "./shared/params";
 import { setupStats } from "./shared/stats_panel";
 import { setBackendAndEnvFlags } from "./shared/util";
-import * as drawing from "./drawing";
+import * as drawing from "./drawing.ts";
 
 let detector, camera, stats;
 let startInferenceTime,

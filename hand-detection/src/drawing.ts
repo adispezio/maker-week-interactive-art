@@ -1,20 +1,42 @@
 import simplify from "./simplify";
 
+type KeyPoint = {
+  // Coords are screen pixels, x in 0..640 and y in 0..480
+  x: number;
+  y: number;
+  name: string;
+};
+
+type KeyPoint3D = {
+  // Coords are like, `0.06` and stuff? No idea what the axes are
+  x: number;
+  y: number;
+  z: number;
+  name: string;
+};
+
+type Hand = {
+  keypoints: Array<KeyPoint>;
+  keypoints3D: Array<KeyPoint3D>;
+  score: number;
+  handedness: "Left" | "Right";
+};
+
 const ws = new WebSocket("ws://localhost:16001");
 
-function distance(p1, p2) {
+function distance(p1: { x: number; y: number }, p2: { x: number; y: number }) {
   return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
 }
 
-function copyPoint(out, p) {
+function copyPoint(out: [number, number], p: [number, number]) {
   out[0] = p[0];
   out[1] = p[1];
   return out;
 }
 
 // From chaikin-smooth NPM package
-function chaikinSmooth(input, output) {
-  if (!Array.isArray(output)) output = [];
+function chaikinSmooth(input: Array<[number, number]>) {
+  const output = [];
 
   if (input.length > 0) output.push(copyPoint([0, 0], input[0]));
 
@@ -40,8 +62,11 @@ function chaikinSmooth(input, output) {
 let allLines = {};
 let prevHandCount = 0;
 
-export function handleFrame(hands, ctx) {
+export function handleFrame(hands: Array<Hand>, ctx: CanvasRenderingContext2D) {
   hands = (hands || []).filter((hand) => Object.keys(hand).length > 0);
+  if (hands.length > 0) {
+    console.log(hands);
+  }
 
   if (hands.length < prevHandCount) {
     for (let handIndex = hands.length; handIndex < prevHandCount; handIndex++) {
@@ -103,9 +128,9 @@ export function handleFrame(hands, ctx) {
 
     // Render debug visualization
     ctx.beginPath();
-    ctx.moveTo(...smoothedPoints[0]);
+    ctx.moveTo(smoothedPoints[0][0], smoothedPoints[0][1]);
     for (const point of smoothedPoints.slice(1)) {
-      ctx.lineTo(...point);
+      ctx.lineTo(point[0], point[1]);
     }
     ctx.stroke();
   }
