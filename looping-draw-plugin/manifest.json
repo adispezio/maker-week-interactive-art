@@ -1,5 +1,5 @@
 {
-  "name": "test",
+  "name": "Draw Loop",
   "id": "1169361208639735865",
   "api": "1.0.0",
   "main": "code.js",
@@ -9,5 +9,6 @@
   ],
   "permissions": [
     "activeusers"
-  ]
+  ],
+  "ui": "ui.html"
 }
