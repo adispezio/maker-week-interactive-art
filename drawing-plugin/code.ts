@@ -155,6 +155,8 @@ class Presence {
 class FlyingNode {
   node: DefaultShapeMixin
   interactingPresences: Set<string> = new Set()
+  vxInitial: number
+  vyInitial: number
   vx: number
   vy: number
 
@@ -170,13 +172,18 @@ class FlyingNode {
     this.node.resize(size, size)
     this.node.x = bounds.x + bounds.width * Math.random() - size / 2
     this.node.y = bounds.y + bounds.height * Math.random() - size / 2
-    this.vx = 3 + 3 * Math.random() * (2 * Math.random() < 1 ? 1 : -1)
-    this.vy = 3 + 3 * Math.random() * (2 * Math.random() < 1 ? 1 : -1)
+    this.vx = this.vxInitial = 3 + 3 * Math.random() * (2 * Math.random() < 1 ? 1 : -1)
+    this.vy = this.vyInitial = 3 + 3 * Math.random() * (2 * Math.random() < 1 ? 1 : -1)
   }
 
   step() {
-    this.node.x = bounds.x + (this.node.x + this.vx - bounds.x) % bounds.width
-    this.node.y = bounds.y + (this.node.y + this.vy - bounds.y) % bounds.height
+    this.node.x = bounds.x + mod(this.node.x + this.vx - bounds.x, bounds.width)
+    this.node.y = bounds.y + mod(this.node.y + this.vy - bounds.y, bounds.height)
+    const vxSameSign = this.vxInitial > 0 == this.vx > 0
+    const vySameSign = this.vyInitial > 0 == this.vy > 0
+    const dampingFactor = 0.0005
+    this.vx = lerp(this.vx, vxSameSign ? this.vxInitial : -this.vxInitial, dampingFactor)
+    this.vy = lerp(this.vy, vySameSign ? this.vyInitial : -this.vyInitial, dampingFactor)
   }
 
   interactWithPresenceAt(presence: Presence) {
@@ -234,6 +241,11 @@ const lerp = (v0: number, v1: number, t: number): number => {
 
 const dist = (x0: number, y0: number, x1: number, y1: number): number => {
   return Math.sqrt(Math.pow(x0 - x1, 2) + Math.pow(y0 - y1, 2))
+}
+
+// mod that wraps negatives into positives, like the designer 
+const mod = (l: number, r: number) => {
+  return ((l % r) + r) % r
 }
 
 const HSBToRGB = (h: number, s: number, b: number): {r: number, g: number, b: number} => {
