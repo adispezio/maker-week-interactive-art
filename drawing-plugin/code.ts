@@ -24,7 +24,7 @@ function cameraPointToFigmaPoint(point: [number, number]): [number, number] {
 
 figma.ui.onmessage = (msg: Message) => {
   if (msg.type === "presence") {
-    let ellipse;
+    let ellipse: EllipseNode;
 
     // If we previously created a circle for the same hand, update it
     if (handIdMap[msg.id] != null) {
@@ -48,6 +48,7 @@ figma.ui.onmessage = (msg: Message) => {
       const [x, y] = cameraPointToFigmaPoint(msg.point);
       ellipse.x = bounds.x + x - presenceCircleSize / 2;
       ellipse.y = bounds.y + y - presenceCircleSize / 2;
+      flying.map(node => node.interactWithPresenceAt(bounds.x + x, bounds.y + y, presenceCircleSize / 2, ellipse.id))
     }
   }
 
@@ -89,3 +90,83 @@ figma.ui.onmessage = (msg: Message) => {
     ];
   }
 };
+
+class FlyingNode {
+  node: DefaultShapeMixin
+  interactingPresences: Set<string> = new Set()
+  vx: number
+  vy: number
+
+  constructor() {
+    const whichShape = 3 * Math.random()
+    if (whichShape < 1) {
+      this.node = figma.createRectangle()
+    } else {
+      this.node = figma.createEllipse()
+    }
+    // this.node.fills = [{ "type": "SOLID", "color": HSBToRGB(360 * Math.random(), 100, 50)}]
+    const size = 75 + 100 * Math.random()
+    this.node.resize(size, size)
+    this.node.x = bounds.x + bounds.width * Math.random() - size / 2
+    this.node.y = bounds.y + bounds.height * Math.random() - size / 2
+    this.vx = 3 + 3 * Math.random() * (2 * Math.random() < 1 ? 1 : -1)
+    this.vy = 3 + 3 * Math.random() * (2 * Math.random() < 1 ? 1 : -1)
+  }
+
+  step() {
+    this.node.x = bounds.x + (this.node.x + this.vx - bounds.x) % bounds.width
+    this.node.y = bounds.y + (this.node.y + this.vy - bounds.y) % bounds.height
+  }
+
+  interactWithPresenceAt(x: number, y: number, r: number, handId: string) {
+    const thisNodeR = this.node.width / 2
+    const distBetween = dist(x, y, this.node.x + thisNodeR, this.node.y + thisNodeR)
+    const tolerance = 10
+    if (!this.interactingPresences.has(handId) && distBetween <= r + thisNodeR) {
+      this.interactingPresences.add(handId)
+      this.node.fills = [{ "type": "SOLID", "color": HSBToRGB(360 * Math.random(), 100, 50)}]
+    } else if (this.interactingPresences.has(handId) && distBetween > r + thisNodeR + tolerance) {
+      this.interactingPresences.delete(handId)
+    }
+  }
+
+}
+
+const flying: FlyingNode[] = []
+async function setup() {
+  flying.push(new FlyingNode())
+  flying.push(new FlyingNode())
+  flying.push(new FlyingNode())
+  flying.push(new FlyingNode())
+  flying.push(new FlyingNode())
+  flying.push(new FlyingNode())
+  flying.push(new FlyingNode())
+}
+
+async function draw() {
+  flying.map(node => node.step())
+}
+
+loop()
+async function loop() {
+  setup()
+  while (true) {
+    draw()
+    const DRAW_DELAY_MS = 5
+    await new Promise(r => setTimeout(r, DRAW_DELAY_MS))
+  }
+
+  figma.closePlugin()
+}
+
+const dist = (x0: number, y0: number, x1: number, y1: number): number => {
+  return Math.sqrt(Math.pow(x0 - x1, 2) + Math.pow(y0 - y1, 2))
+}
+
+const HSBToRGB = (h: number, s: number, b: number): {r: number, g: number, b: number} => {
+  s /= 100;
+  b /= 100;
+  const k = (n: number) => (n + h / 60) % 6;
+  const f = (n: number) => b * (1 - s * Math.max(0, Math.min(k(n), 4 - k(n), 1)));
+  return {r: f(5), g: f(3), b: f(1)};
+}

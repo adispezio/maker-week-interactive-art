@@ -5,7 +5,7 @@ socket.addEventListener('message', function message(event) {
   const reader = new FileReader();
   reader.addEventListener('loadend', (e) => {
     const message = JSON.parse(e.srcElement.result);
-    console.log('received: ', message);
+    // console.log('received: ', message);
     parent.postMessage({ pluginMessage: message }, "*");
   });
   reader.readAsText(event.data);
