@@ -92,7 +92,8 @@ export function handleFrame(hands, ctx) {
     line.points.push([indexTip.x, indexTip.y]);
 
     let smoothedPoints = line.points;
-    smoothedPoints = simplify(smoothedPoints, 2, true);
+    smoothedPoints = simplify(smoothedPoints, 5, true);
+    smoothedPoints = chaikinSmooth(smoothedPoints);
     smoothedPoints = chaikinSmooth(smoothedPoints);
 
     // Send message containing this line's updated geometry
