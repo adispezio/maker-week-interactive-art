@@ -6,7 +6,7 @@ socket.addEventListener('message', function message(event) {
   reader.addEventListener('loadend', (e) => {
     const message = JSON.parse(e.srcElement.result);
     console.log('received: ', message);
-    parent.postMessage({ pluginMessage: { type: 'ws-message', ...message }}, "*");
+    parent.postMessage({ pluginMessage: message }, "*");
   });
   reader.readAsText(event.data);
 });
