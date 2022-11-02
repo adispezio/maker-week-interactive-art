@@ -195,6 +195,10 @@ export function handleFrame(
 
   for (const [tfHandIndex, tfHand] of tfHands.entries()) {
     const indexBase = tfHand.keypoints[KeyPointID.IndexFingerMcp];
+    const indexMcp = tfHand.keypoints[KeyPointID.IndexFingerMcp];
+    const indexTip = tfHand.keypoints[KeyPointID.IndexFingerTip];
+    const middleMcp = tfHand.keypoints[KeyPointID.MiddleFingerMcp];
+    const middleTip = tfHand.keypoints[KeyPointID.MiddleFingerTip];
 
     const wrist3D = tfHand.keypoints3D[KeyPointID.Wrist];
     const indexTip3D = tfHand.keypoints3D[KeyPointID.IndexFingerTip];
@@ -226,10 +230,15 @@ export function handleFrame(
       })
     );
 
+    // Detect finger up or down
+    const indexUp = indexTip.y < indexMcp.y;
+    const middleUp = middleTip.y < middleMcp.y;
+    const isPeaceSign = indexUp && middleUp;
+
     // TODO: Better gesture heuristic
     const isPointing =
-      distance3D(indexTip3D, wrist3D) >
-      1.5 * distance(middleTip3D, wrist3D);
+      !isPeaceSign &&
+      distance3D(indexTip3D, wrist3D) > 1.5 * distance(middleTip3D, wrist3D);
 
     if (!isPointing) {
       // If too many frames have elapsed since the last time we saw this hand
@@ -241,6 +250,17 @@ export function handleFrame(
       ) {
         hand.line = null;
       }
+
+      if (isPeaceSign) {
+        ws.send(
+          JSON.stringify({
+            type: "peace",
+            id: hand.id,
+            point: [middleTip.x, middleTip.y],
+          })
+        );
+      }
+
       continue;
     }
 
