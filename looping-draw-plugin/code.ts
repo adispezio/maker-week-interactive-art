@@ -29,13 +29,15 @@ figma.ui.onmessage = ({id, points, type}: {id: string, points: number[][], type:
 
 async function setup() {
   // const numberOfRectangles = 1
-  frame = figma.createFrame()
+  // frame = figma.createFrame()
 
   await new Promise(r => setTimeout(r, 0))
 }
 
 const myPenCircles: EllipseNode[] = []
+let i = 0
 async function draw() {
+  i = (i + 1) % 3
   clearOldPoints()
 }
 
@@ -55,30 +57,51 @@ const drawPoint = ({ x, y }: { x: number, y: number }) => {
   const distFromLastCircle = Math.sqrt(
     Math.pow(nextCircleX - prevCircleX, 2) + Math.pow(nextCircleY - prevCircleY, 2)
   )
-  const circlesNeededToCover = penCircles.length > 0 ? 2 * distFromLastCircle / CIRCLE_DIAMETER : 1
-
+  const circlesNeededToCover = penCircles.length > 0 ? distFromLastCircle / CIRCLE_DIAMETER : 1
+  
+  let pointsForSmoothing: number[][] = myPenCircles.map(circle => [circle.x, circle.y])
   for (let i = 0; i < circlesNeededToCover; i++) {
-    const circle = figma.createEllipse()
-    circle.resize(CIRCLE_DIAMETER, CIRCLE_DIAMETER)
+    pointsForSmoothing.push([
+      lerp(prevCircleX, nextCircleX, i / circlesNeededToCover),
+      lerp(prevCircleY, nextCircleY, i / circlesNeededToCover)
+    ])
+  }
 
-    circle.x = lerp(prevCircleX, nextCircleX, i / circlesNeededToCover)
-    circle.y = lerp(prevCircleY, nextCircleY, i / circlesNeededToCover)
-
-    const xPercent = (nextCircleX - viewportX) / (viewportWidth)
+  // Try to smooth the line into a nice one
+  const pointsLength = pointsForSmoothing.length
+  if (circlesNeededToCover > 5) {
+    pointsForSmoothing = chaikinSmooth(pointsForSmoothing)
+  } else {
+    pointsForSmoothing = pointsForSmoothing.slice(penCircles.length)
+  }
+  console.log({ circlesNeededToCover, pointsLength, newPointsLength: pointsForSmoothing })
+  // Don't rerender old points
+  
+  pointsForSmoothing.forEach(([intermediateX, intermediateY]) => {
+    const xPercent = (intermediateX - viewportX) / (viewportWidth)
     const hue = lerp(0, 360, xPercent)
     const brightness = 50 // lerp(viewportY, viewportY + viewportHeight, nextCircleY)
     const color = HSBToRGB(hue, 100, brightness)
-
+    
+    const circle = figma.createEllipse()
+    circle.resize(CIRCLE_DIAMETER, CIRCLE_DIAMETER)
+  
+    circle.x = intermediateX
+    circle.y = intermediateY
     circle.fills = [{ type: "SOLID", color }]
     figma.currentPage.appendChild(circle)
     penCircles.push(circle)
-  }
+  })
 }
 
 // Delete old points to create the "trail" effect
 const clearOldPoints = () => {
   const MAX_DOTS_IN_PEN = PEN_TRAIL_LENGTH
   const penCircles: EllipseNode[] = myPenCircles
+
+  if (i % 3 == 0) {
+    penCircles?.shift()?.remove()
+  }
 
   while (penCircles.length >= MAX_DOTS_IN_PEN) {
     const oldestCircle = penCircles.shift()
@@ -209,6 +232,12 @@ const simplify = (function () {
 
   return simplify;
 })()
+
+function copy(out: Array<any>, a: Array<any>) {
+  out[0] = a[0];
+  out[1] = a[1];
+  return out;
+}
 
 function chaikinSmooth(input: any) {
   let output;
