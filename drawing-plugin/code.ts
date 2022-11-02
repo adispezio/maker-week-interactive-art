@@ -11,14 +11,14 @@ const lineIdMap: Record<number, string> = {};
 const handIdMap: Record<number, string> = {};
 
 type Message =
-| { type: 'line', id: number, points: Array<[number, number]> }
-| { type: 'presence', id: number, point: [number, number], gone?: boolean }
-;
+  | { type: "line"; id: number; points: Array<[number, number]> }
+  | { type: "presence"; id: number; point: [number, number] }
+  | { type: "presence"; id: number; gone: true };
 
-function cameraPointToFigmaPoint([x, y]: [number, number]): [number, number] {
+function cameraPointToFigmaPoint(point: [number, number]): [number, number] {
   return [
-    Math.round(((640 - x) / 640) * bounds.width),
-    Math.round((y / 480) * bounds.height),
+    Math.round(((640 - point[0]) / 640) * bounds.width),
+    Math.round((point[1] / 480) * bounds.height),
   ];
 }
 
@@ -41,12 +41,13 @@ figma.ui.onmessage = (msg: Message) => {
       handIdMap[msg.id] = ellipse.id;
     }
 
-    const [x, y] = cameraPointToFigmaPoint(msg.point);
-    ellipse.x = bounds.x + x - presenceCircleSize / 2;
-    ellipse.y = bounds.y + y - presenceCircleSize / 2;
-
-    if (msg.gone) {
+    if ("gone" in msg) {
       ellipse.remove();
+      delete handIdMap[msg.id];
+    } else {
+      const [x, y] = cameraPointToFigmaPoint(msg.point);
+      ellipse.x = bounds.x + x - presenceCircleSize / 2;
+      ellipse.y = bounds.y + y - presenceCircleSize / 2;
     }
   }
 
