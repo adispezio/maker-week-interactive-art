@@ -195,7 +195,8 @@ export function handleFrame(
 
   for (const [tfHandIndex, tfHand] of tfHands.entries()) {
     const indexBase = tfHand.keypoints[KeyPointID.IndexFingerMcp];
-    const indexDip3D = tfHand.keypoints3D[KeyPointID.IndexFingerDip];
+
+    const wrist3D = tfHand.keypoints3D[KeyPointID.Wrist];
     const indexTip3D = tfHand.keypoints3D[KeyPointID.IndexFingerTip];
     const middleTip3D = tfHand.keypoints3D[KeyPointID.MiddleFingerTip];
 
@@ -227,8 +228,8 @@ export function handleFrame(
 
     // TODO: Better gesture heuristic
     const isPointing =
-      distance3D(indexTip3D, middleTip3D) >
-      3 * distance(indexTip3D, indexDip3D);
+      distance3D(indexTip3D, wrist3D) >
+      1.5 * distance(middleTip3D, wrist3D);
 
     if (!isPointing) {
       // If too many frames have elapsed since the last time we saw this hand
