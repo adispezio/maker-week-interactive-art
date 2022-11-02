@@ -38,13 +38,24 @@ function chaikinSmooth(input, output) {
 
 // { [0]: null | { id: "...", coords: [[x, y], ...] } }
 let allLines = {};
+let prevHandCount = 0;
 
 export function handleFrame(hands, ctx) {
-  if (hands == null || hands.length === 0) {
-    // End all active lines
-    allLines = {};
-    return;
+  hands = (hands || []).filter((hand) => Object.keys(hand).length > 0);
+
+  if (hands.length < prevHandCount) {
+    for (let handIndex = hands.length; handIndex < prevHandCount; handIndex++) {
+      delete allLines[handIndex];
+      ws.send(
+        JSON.stringify({
+          type: "presence",
+          id: handIndex,
+          gone: true,
+        })
+      );
+    }
   }
+  prevHandCount = hands.length;
 
   for (const [handIndex, hand] of hands.entries()) {
     if (hand.keypoints == null) {
@@ -81,7 +92,7 @@ export function handleFrame(hands, ctx) {
     line.points.push([indexTip.x, indexTip.y]);
 
     let smoothedPoints = line.points;
-    smoothedPoints = simplify(smoothedPoints, 4, true);
+    smoothedPoints = simplify(smoothedPoints, 2, true);
     smoothedPoints = chaikinSmooth(smoothedPoints);
 
     // Send message containing this line's updated geometry
