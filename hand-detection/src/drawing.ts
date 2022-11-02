@@ -195,10 +195,14 @@ export function handleFrame(
 
   for (const [tfHandIndex, tfHand] of tfHands.entries()) {
     const indexBase = tfHand.keypoints[KeyPointID.IndexFingerMcp];
-    const indexMcp = tfHand.keypoints[KeyPointID.IndexFingerMcp];
+    const indexDip = tfHand.keypoints[KeyPointID.IndexFingerDip];
     const indexTip = tfHand.keypoints[KeyPointID.IndexFingerTip];
-    const middleMcp = tfHand.keypoints[KeyPointID.MiddleFingerMcp];
+    const middleDip = tfHand.keypoints[KeyPointID.IndexFingerDip];
     const middleTip = tfHand.keypoints[KeyPointID.MiddleFingerTip];
+    const ringDip = tfHand.keypoints[KeyPointID.RingFingerDip];
+    const ringTip = tfHand.keypoints[KeyPointID.RingFingerTip];
+    const pinkyDip = tfHand.keypoints[KeyPointID.PinkyFingerDip];
+    const pinkyTip = tfHand.keypoints[KeyPointID.PinkyFingerTip];
 
     const wrist3D = tfHand.keypoints3D[KeyPointID.Wrist];
     const indexTip3D = tfHand.keypoints3D[KeyPointID.IndexFingerTip];
@@ -231,14 +235,15 @@ export function handleFrame(
     );
 
     // Detect finger up or down
-    const indexUp = indexTip.y < indexMcp.y;
-    const middleUp = middleTip.y < middleMcp.y;
-    const isPeaceSign = indexUp && middleUp;
+    const indexUp = indexTip.y < indexDip.y;
+    const middleUp = middleTip.y < middleDip.y;
+    const ringDown = ringTip.y > ringDip.y;
+    const pinkyDown = pinkyTip.y > pinkyDip.y;
 
-    // TODO: Better gesture heuristic
+    const isPeaceSign = indexUp && middleUp && ringDown && pinkyDown;
     const isPointing =
       !isPeaceSign &&
-      distance3D(indexTip3D, wrist3D) > 1.5 * distance(middleTip3D, wrist3D);
+      distance3D(indexTip3D, wrist3D) > 1.4 * distance(middleTip3D, wrist3D);
 
     if (!isPointing) {
       // If too many frames have elapsed since the last time we saw this hand
@@ -256,7 +261,7 @@ export function handleFrame(
           JSON.stringify({
             type: "peace",
             id: hand.id,
-            point: [middleTip.x, middleTip.y],
+            point: [indexBase.x, indexBase.y],
           })
         );
       }

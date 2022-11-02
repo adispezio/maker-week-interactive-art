@@ -162,8 +162,8 @@ figma.ui.onmessage = (msg: Message) => {
             // y: [top, down] => [0, 480]
             // convert points to [0, 1][0, 1]
             const viewportPoint = [
-              normalizedPoint[0] * bounds.width + bounds.x,
-              normalizedPoint[1] * bounds.height + bounds.y,
+              normalizedPoint[0] * bounds.width + bounds.x - 100,
+              normalizedPoint[1] * bounds.height + bounds.y - 100,
             ];
 
             star.x = viewportPoint[0];
