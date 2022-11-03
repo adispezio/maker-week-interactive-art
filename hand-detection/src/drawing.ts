@@ -1,20 +1,7 @@
 import simplify from "./simplify";
+import { STATE } from "./shared/params";
 import sortBy from "lodash/sortBy";
 import difference from "lodash/difference";
-
-// What's the largest number of pixels we could expect a fingertip to move in
-// one frame?
-const MAX_PX_MOVED_PER_FRAME = 50;
-
-// How many frames is a hand allowed to disappear for before coming back?
-const MAX_HAND_FRAME_GAP = 20;
-
-// How many frames is a hand allowed to not point before we cut off the line?
-const MAX_LINE_FRAME_GAP = 20;
-
-// How many frames must a line be captured for before we start sending it to
-// the app?
-const MIN_LINE_FRAMES = 10;
 
 type KeyPoint = {
   // Coords are screen pixels, x in 0..640 and y in 0..480
@@ -200,7 +187,7 @@ function matchHandPairs(
     const hand = handsById[handId];
     const framesElapsed = frameId - hand.lastSeenFrameId;
 
-    if (distance <= framesElapsed * MAX_PX_MOVED_PER_FRAME) {
+    if (distance <= framesElapsed * STATE.drawingConfig.maxPxMovedPerFrame) {
       seenHandIds.add(handId);
       handByTFHandIndex[tfHandIdx] = hand;
 
@@ -241,7 +228,7 @@ export function handleFrame(
     const hand = handsById[handId];
     const framesElapsed = frameId - hand.lastSeenFrameId;
 
-    if (framesElapsed > MAX_HAND_FRAME_GAP) {
+    if (framesElapsed > STATE.drawingConfig.maxHandFrameGap) {
       delete handsById[handId];
       ws.send(
         JSON.stringify({
@@ -329,7 +316,7 @@ export function handleFrame(
       // start a new one.
       if (
         hand.line &&
-        frameId - hand.line.lastSeenFrameId > MAX_LINE_FRAME_GAP
+        frameId - hand.line.lastSeenFrameId > STATE.drawingConfig.maxLineFrameGap
       ) {
         hand.line = null;
       }
@@ -367,7 +354,7 @@ export function handleFrame(
 
     // Send message containing this line's updated geometry
     const shouldSendMessage =
-      frameId - hand.line.firstFrameId > MIN_LINE_FRAMES;
+      frameId - hand.line.firstFrameId > STATE.drawingConfig.minLineFrames;
     if (shouldSendMessage) {
       ws.send(
         JSON.stringify({

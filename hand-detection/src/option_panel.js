@@ -34,10 +34,12 @@ export async function setupDatGui(urlParams) {
   // The model folder contains options for model selection.
   const modelFolder = gui.addFolder('Model');
   const maxNumHands = urlParams.get('maxNumHands');
-
   showModelConfigs(modelFolder, undefined, maxNumHands);
-
   modelFolder.open();
+
+  const drawingFolder = gui.addFolder('Drawing');
+  showDrawingConfigs(drawingFolder);
+  drawingFolder.open();
 
   return gui;
 }
@@ -63,6 +65,36 @@ function showModelConfigs(modelConfigFolder, type, maxNumHands) {
     document.querySelector('#scatter-gl-container-right').style.display =
         render3D ? 'inline-block' : 'none';
   });
+}
+
+function showDrawingConfigs(drawingConfigFolder) {
+  drawingConfigFolder.add(
+    params.STATE.drawingConfig,
+    'maxPxMovedPerFrame',
+    10,
+    500,
+  ).step(10);
+
+  drawingConfigFolder.add(
+    params.STATE.drawingConfig,
+    'maxHandFrameGap',
+    0,
+    100,
+  ).step(5);
+
+  drawingConfigFolder.add(
+    params.STATE.drawingConfig,
+    'maxLineFrameGap',
+    0,
+    100,
+  ).step(5);
+
+  drawingConfigFolder.add(
+    params.STATE.drawingConfig,
+    'minLineFrames',
+    0,
+    50,
+  ).step(5);
 }
 
 /**

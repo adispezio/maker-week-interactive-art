@@ -28,7 +28,22 @@ export const STATE = {
   camera: {targetFPS: 60, sizeOption: '640 X 480'},
   backend: '',
   flags: {},
-  modelConfig: {}
+  modelConfig: {},
+  drawingConfig: {
+    // What's the largest number of pixels we can expect a hand to move in
+    // one frame?
+    maxPxMovedPerFrame: 50,
+
+    // How many frames is a hand allowed to disappear for before coming back?
+    maxHandFrameGap: 20,
+
+    // How many frames is a hand allowed to not point before we end the line?
+    maxLineFrameGap: 20,
+
+    // How many frames must a line be captured for before we commit to creating
+    // it and send it to the app?
+    minLineFrames: 10,
+  },
 };
 export const MEDIAPIPE_HANDS_CONFIG = {
   type: 'full',
