@@ -2,6 +2,7 @@ import simplify from "./simplify";
 import { STATE } from "./shared/params";
 import sortBy from "lodash/sortBy";
 import difference from "lodash/difference";
+import throttle from "lodash/throttle";
 
 type KeyPoint = {
   // Coords are screen pixels, x in 0..640 and y in 0..480
@@ -51,15 +52,16 @@ enum KeyPointID {
 
 const ws = new WebSocket("ws://localhost:16001");
 
-export const syncConfig = () => {
+export const syncConfig = throttle(() => {
+  localStorage.setItem("drawingConfig", JSON.stringify(STATE.drawingConfig));
+
   ws.send(
     JSON.stringify({
       type: "config",
-      maxLines: STATE.drawingConfig.maxLinesPersisting,
-      maxStickers: STATE.drawingConfig.maxStickersPersisting,
+      config: STATE.drawingConfig,
     })
-  )
-}
+  );
+}, 1000, { leading: false, trailing: true });
 
 ws.onopen = syncConfig
 

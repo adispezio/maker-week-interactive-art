@@ -6,8 +6,16 @@ const bounds = figma.viewport.bounds;
 const strokeWeight = 15;
 const cursorScale = 2;
 
-let maxLinesForThisHub = 5;
-let maxStickersForThisHub = 5;
+// Config controlled by the video UI; see `hand-detection/src/shared/params.js`.
+type DrawingConfig = {
+  maxLinesPersisting: number;
+  maxStickersPersisting: number;
+};
+
+let drawingConfig: DrawingConfig = {
+  maxLinesPersisting: 15,
+  maxStickersPersisting: 20,
+};
 
 // Maps from remote id -> Figma id
 const lineIdMap: Record<number, string> = {};
@@ -43,7 +51,7 @@ type Message =
   | { type: "presence"; id: HandId; point: [number, number]; cursorName: string; mode: PresenceMode }
   | { type: "presence"; id: HandId; gone: true }
   | { type: "peace"; id: HandId; point: [number, number] }
-  | { type: "config"; maxLines: number; maxStickers: number };
+  | { type: "config", config: DrawingConfig };
 
 function cameraPointToFigmaPoint(point: [number, number]): [number, number] {
   return [
@@ -130,13 +138,10 @@ const colors: Array<Color> = [
 /////////////////////////
 
 figma.ui.onmessage = (msg: Message) => {
-
   if (msg.type === "config") {
-    console.log('received config', msg)
-    maxLinesForThisHub = msg.maxLines
-    maxStickersForThisHub = msg.maxStickers
+    drawingConfig = msg.config;
   }
-  
+
   if (msg.type === "presence") {
     let presence: Presence;
 
@@ -476,7 +481,7 @@ async function setup() {
 
 const eraseOldTrails = () => {
   const remoteIdsWereDeleted: Set<number> = new Set()
-  for (let i = 0; i < chronologicalRemoteIdsForLine.length - maxLinesForThisHub; i++) {
+  for (let i = 0; i < chronologicalRemoteIdsForLine.length - drawingConfig.maxLinesPersisting; i++) {
     const msgId = chronologicalRemoteIdsForLine[i]
     // Erase the next point in the trail if the presence is gone
     const trailData = lineToTrailData[msgId]
@@ -495,7 +500,7 @@ const eraseOldTrails = () => {
 
 const eraseOldStickers = () => {
   const instanceIdsWereDeleted: Set<string> = new Set()
-  for (let i = 0; i < chronologicalInstanceIdsForSticker.length - maxStickersForThisHub; i++) {
+  for (let i = 0; i < chronologicalInstanceIdsForSticker.length - drawingConfig.maxStickersPersisting; i++) {
     const instanceId = chronologicalInstanceIdsForSticker[i]
     // Fade out the sticker
     const sticker = figma.getNodeById(instanceId) as InstanceNode

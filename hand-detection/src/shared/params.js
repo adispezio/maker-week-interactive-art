@@ -24,6 +24,10 @@ export const VIDEO_SIZE = {
   '640 X 360': {width: 640, height: 360},
   '360 X 270': {width: 360, height: 270}
 };
+
+const storedDrawingConfigRaw = localStorage.getItem("drawingConfig");
+const storedDrawingConfig = storedDrawingConfigRaw ? JSON.parse(storedDrawingConfigRaw) : {};
+
 export const STATE = {
   camera: {targetFPS: 60, sizeOption: '640 X 480'},
   backend: '',
@@ -46,12 +50,14 @@ export const STATE = {
 
     // What name appears next to cursors created by this instance?
     cursorName: "Figmate",
-    
+
     // What's the maximum number of lines allowed on the canvas at once in this hub?
     maxLinesPersisting: 15,
-    
+
     // What's the maximum number of stickers allowed on the canvas at once in this hub?
     maxStickersPersisting: 20,
+
+    ...storedDrawingConfig,
   },
 };
 export const MEDIAPIPE_HANDS_CONFIG = {
