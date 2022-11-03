@@ -74,6 +74,16 @@ enum PeaceState {
 }
 let peaceState = PeaceState.DEFAULT;
 let lastNormalizedPointForPeace: number[];
+let peaceObject : ComponentNode
+
+/////// images
+
+const componentHashes = [
+  '3841da106e54d554743f7b451a16c0a85fe539fd',
+  'ba350bfa63bb11fd724f216635d89ecae4d9f402'
+]
+
+/////////////////////////
 
 figma.ui.onmessage = (msg: Message) => {
   const randomColor = msgToRandomColor(msg);
@@ -139,6 +149,13 @@ figma.ui.onmessage = (msg: Message) => {
 
   if (msg.type === "peace") {
     const normalizedPoint = [(640 - msg.point[0]) / 640, msg.point[1] / 480];
+    // x: [left, right] => [640, 0]
+    // y: [top, down] => [0, 480]
+    // convert points to [0, 1][0, 1]
+    const viewportPoint = [
+      normalizedPoint[0] * bounds.width + bounds.x - 100,
+      normalizedPoint[1] * bounds.height + bounds.y - 100,
+    ];
 
     // States
     // DEFAULT
@@ -151,39 +168,35 @@ figma.ui.onmessage = (msg: Message) => {
         lastNormalizedPointForPeace = normalizedPoint;
         peaceState = PeaceState.TRIGGERED_OBJECT;
 
-        setTimeout(function () {
-          if (peaceState == PeaceState.TRIGGERED_OBJECT) {
-            console.log("peaceState: " + peaceState);
-            let star = figma.createStar();
-            // Set size to 200 x 200
-            star.resize(200, 200);
+        // Create a new object to follow the hand!
+        //peaceObject = figma.createNodeFromSvg(peaceSvg);
+        const randomNumber = Math.floor(Math.random() * componentHashes.length);
+        figma.importComponentByKeyAsync(componentHashes[randomNumber]).then((newComponent) => {
+          peaceObject = newComponent.clone()
+          peaceObject.x = viewportPoint[0];
+          peaceObject.y = viewportPoint[1];
 
-            // x: [left, right] => [640, 0]
-            // y: [top, down] => [0, 480]
-            // convert points to [0, 1][0, 1]
-            const viewportPoint = [
-              normalizedPoint[0] * bounds.width + bounds.x - 100,
-              normalizedPoint[1] * bounds.height + bounds.y - 100,
-            ];
+          setTimeout(function () {
+            if (peaceState == PeaceState.TRIGGERED_OBJECT) {
+              // Once we place the item, update the state.
+              peaceObject.rescale(1.5);
+              peaceState = PeaceState.PLACED_OBJECT;
+            }
+          }, 1000);
+        })
 
-            star.x = viewportPoint[0];
-            star.y = viewportPoint[1];
-
-            // Make the star 7-pointed
-            star.pointCount = 7;
-
-            // Once we place the item, update the state.
-            peaceState = PeaceState.PLACED_OBJECT;
-          }
-        }, 1000);
         break;
       }
       case PeaceState.TRIGGERED_OBJECT: {
-        // We have triggered setTimeout but it hasn't done anything yet. don't do anything here.
+        // We have triggered setTimeout but it hasn't triggered yet. update the position of the object created
+        if (peaceObject != null) {
+          peaceObject.x = viewportPoint[0];
+          peaceObject.y = viewportPoint[1];
+        }
       }
       case PeaceState.PLACED_OBJECT: {
-        // We have now placed an object. we will now check the positions to ensure they are far away.
 
+        // We have now placed an object. we will now check the positions to ensure they are far away.
         if (lastNormalizedPointForPeace != null) {
           var a = lastNormalizedPointForPeace[0] - normalizedPoint[0];
           var b = lastNormalizedPointForPeace[1] - normalizedPoint[1];
