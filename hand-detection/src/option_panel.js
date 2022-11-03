@@ -29,7 +29,7 @@ let TUNABLE_FLAG_DEFAULT_VALUE_MAP;
 const stringValueMap = {};
 
 export async function setupDatGui(urlParams) {
-  const gui = new dat.GUI({width: 300});
+  const gui = new dat.GUI({width: 400});
   gui.domElement.id = 'gui';
 
   // The model folder contains options for model selection.
