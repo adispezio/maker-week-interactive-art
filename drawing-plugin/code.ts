@@ -48,10 +48,16 @@ type Message =
       handId: HandId;
       points: Array<[number, number]>;
     }
-  | { type: "presence"; id: HandId; point: [number, number]; cursorName: string; mode: PresenceMode }
+  | {
+      type: "presence";
+      id: HandId;
+      point: [number, number];
+      cursorName: string;
+      mode: PresenceMode;
+    }
   | { type: "presence"; id: HandId; gone: true }
   | { type: "peace"; id: HandId; point: [number, number] }
-  | { type: "config", config: DrawingConfig };
+  | { type: "config"; config: DrawingConfig };
 
 function cameraPointToFigmaPoint(point: [number, number]): [number, number] {
   return [
@@ -89,7 +95,7 @@ const msgToRandomColor = (msg: Message): RGBType => {
   return randomColor;
 };
 
-type Color = {r: number, g: number, b: number}
+type Color = { r: number; g: number; b: number };
 
 // Gesture detection stuff
 enum PeaceState {
@@ -101,39 +107,39 @@ enum PeaceState {
 }
 let peaceState = PeaceState.DEFAULT;
 let lastNormalizedPointForPeace: number[];
-let peaceObjectId : string = '-1:-1'
+let peaceObjectId: string = "-1:-1";
 
 /////// images
 
 const componentHashes = [
-  '3841da106e54d554743f7b451a16c0a85fe539fd', // peace
-  'ba350bfa63bb11fd724f216635d89ecae4d9f402', // slay
-  '2c83518d4dd76855bf5f63e3943e365d1c018b0d', // taco
-  '0d0505bc86661da814026b1ddd57ba6edb2dc5a9', // flan 
-  '020958c2bb11fab15c03df71f173adc0a6176915', // onigiri
-  '8907f725c510fbec4a97f681b803f8d666f09633', // golden gate
-  'a1d77250c56697bf34bf1fd45b95b23b229cf7ba', // golden gate 2
-  'dbd2e03ac5327502b78e6d987ef534e453843292', // big apple
-  '848f91b2ddf7b633fd69b5674c6df21b5c968cde', // statue liberty
-  '177b4e9e2b8c9643139dd26b1ca201ec21d817a2', // empire state
-  '14c73ac92e597c6127117716c9b2b8614a0cb04d', // rock on
-  '07279b98a37715de081a3652dc78964a1ee79bea', // party time
-  '7f33b657d888f46983c30374cf7eee231ffd15f7', // lets jam dino
-]
+  "3841da106e54d554743f7b451a16c0a85fe539fd", // peace
+  "ba350bfa63bb11fd724f216635d89ecae4d9f402", // slay
+  "2c83518d4dd76855bf5f63e3943e365d1c018b0d", // taco
+  "0d0505bc86661da814026b1ddd57ba6edb2dc5a9", // flan
+  "020958c2bb11fab15c03df71f173adc0a6176915", // onigiri
+  "8907f725c510fbec4a97f681b803f8d666f09633", // golden gate
+  "a1d77250c56697bf34bf1fd45b95b23b229cf7ba", // golden gate 2
+  "dbd2e03ac5327502b78e6d987ef534e453843292", // big apple
+  "848f91b2ddf7b633fd69b5674c6df21b5c968cde", // statue liberty
+  "177b4e9e2b8c9643139dd26b1ca201ec21d817a2", // empire state
+  "14c73ac92e597c6127117716c9b2b8614a0cb04d", // rock on
+  "07279b98a37715de081a3652dc78964a1ee79bea", // party time
+  "7f33b657d888f46983c30374cf7eee231ffd15f7", // lets jam dino
+];
 
 const colors: Array<Color> = [
-  {r: 255 / 255, g: 199 / 255, b: 0 / 255},
-  {r: 242 / 255, g: 78 / 255, b: 30 / 255},
-  {r: 238 / 255, g: 70 / 255, b: 211 / 255},
-  {r: 85 / 255, g: 81 / 255, b: 255 / 255},
-  {r: 144 / 255, g: 124 / 255, b: 255 / 255},
-  {r: 27 / 255, g: 196 / 255, b: 125 / 255},
-  {r: 0 / 255, g: 181 / 255, b: 206 / 255},
-  {r: 24 / 255, g: 160 / 255, b: 251 / 255},
-  {r: 15 / 255, g: 169 / 255, b: 88 / 255},
-  {r: 151 / 255, g: 71 / 255, b: 255 / 255},
-  {r: 132 / 255, g: 132 / 255, b: 132 / 255},
-  {r: 210 / 255, g: 124 / 255, b: 44 / 255},
+  { r: 255 / 255, g: 199 / 255, b: 0 / 255 },
+  { r: 242 / 255, g: 78 / 255, b: 30 / 255 },
+  { r: 238 / 255, g: 70 / 255, b: 211 / 255 },
+  { r: 85 / 255, g: 81 / 255, b: 255 / 255 },
+  { r: 144 / 255, g: 124 / 255, b: 255 / 255 },
+  { r: 27 / 255, g: 196 / 255, b: 125 / 255 },
+  { r: 0 / 255, g: 181 / 255, b: 206 / 255 },
+  { r: 24 / 255, g: 160 / 255, b: 251 / 255 },
+  { r: 15 / 255, g: 169 / 255, b: 88 / 255 },
+  { r: 151 / 255, g: 71 / 255, b: 255 / 255 },
+  { r: 132 / 255, g: 132 / 255, b: 132 / 255 },
+  { r: 210 / 255, g: 124 / 255, b: 44 / 255 },
 ];
 
 /////////////////////////
@@ -170,10 +176,10 @@ figma.ui.onmessage = (msg: Message) => {
   }
 
   if (msg.type === "line") {
-    const presence = handIdMap[msg.handId]
-    renderVector(msg.id, msg.points, presence.color)
+    const presence = handIdMap[msg.handId];
+    renderVector(msg.id, msg.points, presence.color);
     if (presence.node) {
-      figma.currentPage.appendChild(presence.node)
+      figma.currentPage.appendChild(presence.node);
     }
   }
 
@@ -198,34 +204,39 @@ figma.ui.onmessage = (msg: Message) => {
         lastNormalizedPointForPeace = normalizedPoint;
         peaceState = PeaceState.CREATING_OBJECT;
 
-        if (peaceObjectId === '-1:-1') {
-          const randomNumber = Math.floor(Math.random() * componentHashes.length);
+        if (peaceObjectId === "-1:-1") {
+          const randomNumber = Math.floor(
+            Math.random() * componentHashes.length
+          );
           // Create a new instance of a sticker to follow the hand!
-          figma.importComponentByKeyAsync(componentHashes[randomNumber]).then((newComponent) => {
-            const peaceObject = newComponent.createInstance()
-            peaceObjectId = peaceObject.id
-            peaceState = PeaceState.TRIGGERED_OBJECT;
+          figma
+            .importComponentByKeyAsync(componentHashes[randomNumber])
+            .then((newComponent) => {
+              const peaceObject = newComponent.createInstance();
+              peaceObjectId = peaceObject.id;
+              peaceState = PeaceState.TRIGGERED_OBJECT;
 
-            chronologicalInstanceIdsForSticker.push(peaceObject.id)
-  
-            peaceObject.opacity = 0.5;
-          peaceObject.relativeTransform = [
-            [1.5, 0, viewportPoint[0]   - peaceObject.width / 2],
-            [0, 1.5, viewportPoint[0] - peaceObject.height / 2],
-          ];
+              chronologicalInstanceIdsForSticker.push(peaceObject.id);
 
-          setTimeout(function () {
-            if (peaceState == PeaceState.TRIGGERED_OBJECT) {
-              // Once we place the item, update the state.
-              peaceObject.x -= peaceObject.width/4
-              peaceObject.y -= peaceObject.height/4
-              peaceObject.rescale(1.5);
-              peaceState = PeaceState.PLACED_OBJECT;
-            }
-          }, 1000);
-        })
+              peaceObject.opacity = 0.5;
+              peaceObject.relativeTransform = [
+                [1.5, 0, viewportPoint[0] - peaceObject.width / 2],
+                [0, 1.5, viewportPoint[0] - peaceObject.height / 2],
+              ];
 
-        break;
+              setTimeout(function () {
+                if (peaceState == PeaceState.TRIGGERED_OBJECT) {
+                  // Once we place the item, update the state.
+                  peaceObject.x -= peaceObject.width / 4;
+                  peaceObject.y -= peaceObject.height / 4;
+                  peaceObject.rescale(1.5);
+                  peaceState = PeaceState.PLACED_OBJECT;
+                }
+              }, 1000);
+            });
+
+          break;
+        }
       }
       case PeaceState.CREATING_OBJECT: {
         // Waiting for object to be created just in case it takes a while
@@ -233,9 +244,9 @@ figma.ui.onmessage = (msg: Message) => {
       }
       case PeaceState.TRIGGERED_OBJECT: {
         // We have triggered setTimeout but it hasn't triggered yet. update the position of the object created
-        const peaceObject = figma.getNodeById(peaceObjectId) as InstanceNode
+        const peaceObject = figma.getNodeById(peaceObjectId) as InstanceNode;
         if (peaceObject != null) {
-          console.log ("moving " + peaceObjectId)
+          console.log("moving " + peaceObjectId);
           peaceObject.x = viewportPoint[0];
           peaceObject.y = viewportPoint[1];
         }
@@ -253,7 +264,7 @@ figma.ui.onmessage = (msg: Message) => {
             peaceState = PeaceState.WAIT_FOR_DELAY;
             setTimeout(function () {
               peaceState = PeaceState.DEFAULT;
-              peaceObjectId = '-1:-1'
+              peaceObjectId = "-1:-1";
             }, 300);
           }
         }
@@ -267,9 +278,9 @@ figma.ui.onmessage = (msg: Message) => {
 };
 
 const renderVector = (
-  msgId: number, 
-  points: [number, number][], 
-  color: Color = {r: 255, g: 255, b: 255}
+  msgId: number,
+  points: [number, number][],
+  color: Color = { r: 255, g: 255, b: 255 }
 ) => {
   let vector: VectorNode;
   // If we previously created a vector for the same line, update it
@@ -287,7 +298,7 @@ const renderVector = (
     ];
     lineIdMap[msgId] = vector.id;
     chronologicalRemoteIdsForLine.push(msgId);
-    lineToTrailData[msgId] = {points: []}
+    lineToTrailData[msgId] = { points: [] };
   }
 
   vector.relativeTransform = [
@@ -295,21 +306,22 @@ const renderVector = (
     [0, 1, bounds.y],
   ];
 
-  const trailData = lineToTrailData[msgId]
-  trailData.points = points
+  const trailData = lineToTrailData[msgId];
+  trailData.points = points;
   const data =
     "M " +
-    points
-      .map((point) => cameraPointToFigmaPoint(point).join(" "))
-      .join(" L ");
+    points.map((point) => cameraPointToFigmaPoint(point).join(" ")).join(" L ");
 
-  vector.vectorPaths = points.length == 0 ? [] : [
-    {
-      windingRule: "EVENODD",
-      data,
-    },
-  ];
-}
+  vector.vectorPaths =
+    points.length == 0
+      ? []
+      : [
+          {
+            windingRule: "EVENODD",
+            data,
+          },
+        ];
+};
 
 class Presence {
   node?: InstanceNode;
@@ -331,20 +343,20 @@ class Presence {
       this.node = component.createInstance();
       this.node.scaleFactor = cursorScale;
 
-      const pencil = this.node.findOne(child => child.name === "pencil") as BooleanOperationNode;
-      pencil.fills = [
-        { "type": "SOLID", "color": color }
-      ];
+      const pencil = this.node.findOne(
+        (child) => child.name === "pencil"
+      ) as BooleanOperationNode;
+      pencil.fills = [{ type: "SOLID", color: color }];
 
-      const cursor = this.node.findOne(child => child.name === "pointer") as VectorNode;
-      cursor.fills = [
-        { "type": "SOLID", "color": color }
-      ];
+      const cursor = this.node.findOne(
+        (child) => child.name === "pointer"
+      ) as VectorNode;
+      cursor.fills = [{ type: "SOLID", color: color }];
 
-      const labelRect = this.node.findOne(child => child.name === "label") as RectangleNode;
-      labelRect.fills = [
-        { "type": "SOLID", "color": color }
-      ];
+      const labelRect = this.node.findOne(
+        (child) => child.name === "label"
+      ) as RectangleNode;
+      labelRect.fills = [{ type: "SOLID", color: color }];
 
       this.setX(this.x);
       this.setY(this.y);
@@ -375,7 +387,9 @@ class Presence {
     this.cursorName = cursorName;
 
     if (this.node) {
-      const textNode = this.node.findOne(child => child.type === "TEXT") as TextNode;
+      const textNode = this.node.findOne(
+        (child) => child.type === "TEXT"
+      ) as TextNode;
       if (textNode) {
         textNode.characters = this.cursorName;
       }
@@ -386,8 +400,10 @@ class Presence {
     this.mode = mode;
 
     if (this.node) {
-      const pencilNode = this.node.findOne(child => child.name === "pencil")!;
-      const pointerNode = this.node.findOne(child => child.name === "pointer")!;
+      const pencilNode = this.node.findOne((child) => child.name === "pencil")!;
+      const pointerNode = this.node.findOne(
+        (child) => child.name === "pointer"
+      )!;
 
       if (this.mode === PresenceMode.Cursor) {
         pencilNode.visible = false;
@@ -451,7 +467,9 @@ class FlyingNode {
   }
 
   interactWithPresenceAt(presence: Presence) {
-    if (!presence.node) {return}
+    if (!presence.node) {
+      return;
+    }
     const presenceR = presence.node.width / 2;
     const thisNodeR = this.node.width / 2;
     const distBetween = dist(
@@ -479,8 +497,8 @@ class FlyingNode {
 }
 
 type TrailData = {
-  points: [number, number][]
-}
+  points: [number, number][];
+};
 
 const flying: FlyingNode[] = [];
 async function setup() {
@@ -494,45 +512,60 @@ async function setup() {
 }
 
 const eraseOldTrails = () => {
-  const remoteIdsWereDeleted: Set<number> = new Set()
-  for (let i = 0; i < chronologicalRemoteIdsForLine.length - drawingConfig.maxLinesPersisting; i++) {
-    const msgId = chronologicalRemoteIdsForLine[i]
+  const remoteIdsWereDeleted: Set<number> = new Set();
+  for (
+    let i = 0;
+    i < chronologicalRemoteIdsForLine.length - drawingConfig.maxLinesPersisting;
+    i++
+  ) {
+    const msgId = chronologicalRemoteIdsForLine[i];
     // Erase the next point in the trail if the presence is gone
-    const trailData = lineToTrailData[msgId]
+    const trailData = lineToTrailData[msgId];
     if (!handIdMap[msgId] && trailData.points.length > 0) {
-      trailData.points = trailData.points.slice(1)
-      renderVector(Number(msgId), trailData.points)
+      trailData.points = trailData.points.slice(1);
+      renderVector(Number(msgId), trailData.points);
     } else if (!handIdMap[msgId] && trailData.points.length == 0) {
-      figma.getNodeById(lineIdMap[msgId])?.remove()
-      delete lineIdMap[msgId]
-      remoteIdsWereDeleted.add(msgId)
+      figma.getNodeById(lineIdMap[msgId])?.remove();
+      delete lineIdMap[msgId];
+      remoteIdsWereDeleted.add(msgId);
     }
   }
 
-  chronologicalRemoteIdsForLine = chronologicalRemoteIdsForLine.filter(id => !remoteIdsWereDeleted.has(id))
-}
+  chronologicalRemoteIdsForLine = chronologicalRemoteIdsForLine.filter(
+    (id) => !remoteIdsWereDeleted.has(id)
+  );
+};
 
 const eraseOldStickers = () => {
-  const instanceIdsWereDeleted: Set<string> = new Set()
-  for (let i = 0; i < chronologicalInstanceIdsForSticker.length - drawingConfig.maxStickersPersisting; i++) {
-    const instanceId = chronologicalInstanceIdsForSticker[i]
+  const instanceIdsWereDeleted: Set<string> = new Set();
+  for (
+    let i = 0;
+    i <
+    chronologicalInstanceIdsForSticker.length -
+      drawingConfig.maxStickersPersisting;
+    i++
+  ) {
+    const instanceId = chronologicalInstanceIdsForSticker[i];
     // Fade out the sticker
-    const sticker = figma.getNodeById(instanceId) as InstanceNode
+    const sticker = figma.getNodeById(instanceId) as InstanceNode;
     if (sticker.opacity <= 0.04) {
-      sticker.remove()
-      instanceIdsWereDeleted.add(instanceId)
+      sticker.remove();
+      instanceIdsWereDeleted.add(instanceId);
     } else {
-      sticker.opacity -= 0.04
+      sticker.opacity -= 0.04;
     }
   }
 
-  chronologicalInstanceIdsForSticker = chronologicalInstanceIdsForSticker.filter(id => !instanceIdsWereDeleted.has(id))
-}
+  chronologicalInstanceIdsForSticker =
+    chronologicalInstanceIdsForSticker.filter(
+      (id) => !instanceIdsWereDeleted.has(id)
+    );
+};
 
 async function draw() {
   flying.forEach((node) => node.step());
-  eraseOldTrails()
-  eraseOldStickers()
+  eraseOldTrails();
+  eraseOldStickers();
 }
 
 loop();
