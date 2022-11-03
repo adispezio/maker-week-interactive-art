@@ -265,9 +265,9 @@ export function handleFrame(
     const pinkyTip = tfHand.keypoints[KeyPointID.PinkyFingerTip];
 
     const wrist3D = tfHand.keypoints3D[KeyPointID.Wrist];
-    const indexBase3D = tfHand.keypoints3D[KeyPointID.IndexFingerMcp];
+    const indexPip3D = tfHand.keypoints3D[KeyPointID.IndexFingerPip];
     const indexTip3D = tfHand.keypoints3D[KeyPointID.IndexFingerTip];
-    const middleBase3D = tfHand.keypoints3D[KeyPointID.MiddleFingerMcp];
+    const middlePip3D = tfHand.keypoints3D[KeyPointID.MiddleFingerPip];
     const middleTip3D = tfHand.keypoints3D[KeyPointID.MiddleFingerTip];
 
     // Reuse the existing hand if there is one, otherwise create a new one.
@@ -300,10 +300,10 @@ export function handleFrame(
     const pinkyDown = pinkyTip.y > pinkyDip.y;
 
     const indexPointed =
-      angleBetweenPoints(indexBase3D, wrist3D, indexTip3D) > 60;
+      angleBetweenPoints(indexPip3D, wrist3D, indexTip3D) > 60;
 
     const middleCurled =
-      angleBetweenPoints(middleBase3D, wrist3D, middleTip3D) < 120;
+      angleBetweenPoints(middlePip3D, wrist3D, middleTip3D) < 120;
 
     const isPeaceSign =
       indexUp &&
@@ -314,6 +314,14 @@ export function handleFrame(
       !middleCurled;
 
     const isPointing = !isPeaceSign && indexPointed && middleCurled;
+
+    // Uncomment to debug gesture detection
+    //console.log(
+      //"%c%f0.2%f0.2",
+      //"color: " + (isPeaceSign ? "green" : isPointing ? "red" : "blue"),
+      //angleBetweenPoints(indexPip3D, wrist3D, indexTip3D),
+      //angleBetweenPoints(middlePip3D, wrist3D, middleTip3D)
+    //);
 
     if (!isPointing) {
       // If too many frames have elapsed since the last time we saw this hand
