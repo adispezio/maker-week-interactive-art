@@ -8,6 +8,7 @@ const presenceCircleSize = 15;
 
 // Maps from remote id -> Figma id
 const lineIdMap: Record<number, string> = {};
+const lineToTrailData: Record<number, TrailData> = {};
 const handIdMap: Record<number, Presence> = {};
 
 // Maps from msg ID to a random color.
@@ -111,40 +112,7 @@ figma.ui.onmessage = (msg: Message) => {
   }
 
   if (msg.type === "line") {
-    let vector;
-    // If we previously created a vector for the same line, update it
-    if (lineIdMap[msg.id] != null) {
-      vector = figma.getNodeById(lineIdMap[msg.id]) as VectorNode;
-    } else {
-      vector = figma.createVector();
-      vector.strokeWeight = strokeWeight;
-      vector.strokeCap = "ROUND";
-      vector.strokes = [
-        {
-          type: "SOLID",
-          color: randomColor,
-        },
-      ];
-      lineIdMap[msg.id] = vector.id;
-    }
-
-    vector.relativeTransform = [
-      [1, 0, bounds.x],
-      [0, 1, bounds.y],
-    ];
-
-    const data =
-      "M " +
-      msg.points
-        .map((point) => cameraPointToFigmaPoint(point).join(" "))
-        .join(" L ");
-
-    vector.vectorPaths = [
-      {
-        windingRule: "EVENODD",
-        data,
-      },
-    ];
+    renderVector(msg.id, msg.points, randomColor)
   }
 
   if (msg.type === "peace") {
@@ -219,6 +187,50 @@ figma.ui.onmessage = (msg: Message) => {
     }
   }
 };
+
+const renderVector = (
+  msgId: number, 
+  points: [number, number][], 
+  color: {r: number, g: number, b: number} = {r: 255, g: 255, b: 255}
+) => {
+  let vector: VectorNode;
+  // If we previously created a vector for the same line, update it
+  if (lineIdMap[msgId] != null) {
+    vector = figma.getNodeById(lineIdMap[msgId]) as VectorNode;
+  } else {
+    vector = figma.createVector();
+    vector.strokeWeight = strokeWeight;
+    vector.strokeCap = "ROUND";
+    vector.strokes = [
+      {
+        type: "SOLID",
+        color: color,
+      },
+    ];
+    lineIdMap[msgId] = vector.id;
+    lineToTrailData[msgId] = {points: []}
+  }
+
+  vector.relativeTransform = [
+    [1, 0, bounds.x],
+    [0, 1, bounds.y],
+  ];
+
+  const trailData = lineToTrailData[msgId]
+  trailData.points = points
+  const data =
+    "M " +
+    points
+      .map((point) => cameraPointToFigmaPoint(point).join(" "))
+      .join(" L ");
+
+  vector.vectorPaths = points.length == 0 ? [] : [
+    {
+      windingRule: "EVENODD",
+      data,
+    },
+  ];
+}
 
 class Presence {
   node: EllipseNode;
@@ -326,6 +338,10 @@ class FlyingNode {
   }
 }
 
+type TrailData = {
+  points: [number, number][]
+}
+
 const flying: FlyingNode[] = [];
 async function setup() {
   flying.push(new FlyingNode());
@@ -337,8 +353,23 @@ async function setup() {
   flying.push(new FlyingNode());
 }
 
+const eraseDeadTrails = () => {
+  for (const msgId in lineToTrailData) {
+    // Erase the next point in the trail if the presence is gone
+    const trailData = lineToTrailData[msgId]
+    if (!handIdMap[msgId] && trailData.points.length > 0) {
+      trailData.points = trailData.points.slice(1)
+      renderVector(Number(msgId), trailData.points)
+    } else if (!handIdMap[msgId] && trailData.points.length == 0) {
+      figma.getNodeById(lineIdMap[msgId])?.remove()
+    }
+    console.log(trailData.points.length)
+  }
+}
+
 async function draw() {
-  flying.map((node) => node.step());
+  flying.forEach((node) => node.step());
+  eraseDeadTrails()
 }
 
 loop();
@@ -346,7 +377,7 @@ async function loop() {
   // setup();
   while (true) {
     draw();
-    const DRAW_DELAY_MS = 5;
+    const DRAW_DELAY_MS = 50;
     await new Promise((r) => setTimeout(r, DRAW_DELAY_MS));
   }
 
