@@ -189,8 +189,8 @@ figma.ui.onmessage = (msg: Message) => {
     // y: [top, down] => [0, 480]
     // convert points to [0, 1][0, 1]
     const viewportPoint = [
-      normalizedPoint[0] * bounds.width + bounds.x - 100,
-      normalizedPoint[1] * bounds.height + bounds.y - 100,
+      normalizedPoint[0] * bounds.width + bounds.x,
+      normalizedPoint[1] * bounds.height + bounds.y,
     ];
 
     // States
@@ -208,21 +208,19 @@ figma.ui.onmessage = (msg: Message) => {
           const randomNumber = Math.floor(
             Math.random() * componentHashes.length
           );
+
           // Create a new instance of a sticker to follow the hand!
           figma
             .importComponentByKeyAsync(componentHashes[randomNumber])
             .then((newComponent) => {
               const peaceObject = newComponent.createInstance();
+              peaceObject.x = viewportPoint[0] - peaceObject.width / 2;
+              peaceObject.y = viewportPoint[1] - peaceObject.height / 2;
+
               peaceObjectId = peaceObject.id;
               peaceState = PeaceState.TRIGGERED_OBJECT;
 
               chronologicalInstanceIdsForSticker.push(peaceObject.id);
-
-              peaceObject.opacity = 0.5;
-              peaceObject.relativeTransform = [
-                [1.5, 0, viewportPoint[0] - peaceObject.width / 2],
-                [0, 1.5, viewportPoint[0] - peaceObject.height / 2],
-              ];
 
               setTimeout(function () {
                 if (peaceState == PeaceState.TRIGGERED_OBJECT) {
@@ -246,9 +244,8 @@ figma.ui.onmessage = (msg: Message) => {
         // We have triggered setTimeout but it hasn't triggered yet. update the position of the object created
         const peaceObject = figma.getNodeById(peaceObjectId) as InstanceNode;
         if (peaceObject != null) {
-          console.log("moving " + peaceObjectId);
-          peaceObject.x = viewportPoint[0];
-          peaceObject.y = viewportPoint[1];
+          peaceObject.x = viewportPoint[0] - peaceObject.width / 2;
+          peaceObject.y = viewportPoint[1] - peaceObject.height / 2;
         }
         break;
       }
