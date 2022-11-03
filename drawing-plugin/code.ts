@@ -5,13 +5,15 @@ const bounds = figma.viewport.bounds;
 
 const strokeWeight = 5;
 const maxLinesForThisHub = 5;
+const maxStickersForThisHub = 5;
 
 // Maps from remote id -> Figma id
 const lineIdMap: Record<number, string> = {};
 const lineToTrailData: Record<number, TrailData> = {};
 const handIdMap: Record<number, Presence> = {};
 
-let remoteIdsChronological: number[] = [];
+let chronologicalRemoteIdsForLine: number[] = [];
+let chronologicalInstanceIdsForSticker: string[] = [];
 
 // Maps from msg ID to a random color.
 type RGBType = {
@@ -178,6 +180,9 @@ figma.ui.onmessage = (msg: Message) => {
         const randomNumber = Math.floor(Math.random() * componentHashes.length);
         figma.importComponentByKeyAsync(componentHashes[randomNumber]).then((newComponent) => {
           peaceObject = newComponent.createInstance()
+
+          chronologicalInstanceIdsForSticker.push(peaceObject.id)
+          
           peaceObject.x = viewportPoint[0];
           peaceObject.y = viewportPoint[1];
 
@@ -202,7 +207,6 @@ figma.ui.onmessage = (msg: Message) => {
         }
       }
       case PeaceState.PLACED_OBJECT: {
-
         // We have now placed an object. we will now check the positions to ensure they are far away.
         if (lastNormalizedPointForPeace != null) {
           var a = lastNormalizedPointForPeace[0] - normalizedPoint[0];
@@ -245,7 +249,7 @@ const renderVector = (
       },
     ];
     lineIdMap[msgId] = vector.id;
-    remoteIdsChronological.push(msgId);
+    chronologicalRemoteIdsForLine.push(msgId);
     lineToTrailData[msgId] = {points: []}
   }
 
@@ -394,8 +398,8 @@ async function setup() {
 
 const eraseOldTrails = () => {
   const remoteIdsWereDeleted: Set<number> = new Set()
-  for (let i = 0; i < remoteIdsChronological.length - maxLinesForThisHub; i++) {
-    const msgId = remoteIdsChronological[i]
+  for (let i = 0; i < chronologicalRemoteIdsForLine.length - maxLinesForThisHub; i++) {
+    const msgId = chronologicalRemoteIdsForLine[i]
     // Erase the next point in the trail if the presence is gone
     const trailData = lineToTrailData[msgId]
     if (!handIdMap[msgId] && trailData.points.length > 0) {
@@ -408,12 +412,30 @@ const eraseOldTrails = () => {
     }
   }
 
-  remoteIdsChronological = remoteIdsChronological.filter(id => !remoteIdsWereDeleted.has(id))
+  chronologicalRemoteIdsForLine = chronologicalRemoteIdsForLine.filter(id => !remoteIdsWereDeleted.has(id))
+}
+
+const eraseOldStickers = () => {
+  const instanceIdsWereDeleted: Set<string> = new Set()
+  for (let i = 0; i < chronologicalInstanceIdsForSticker.length - maxStickersForThisHub; i++) {
+    const instanceId = chronologicalInstanceIdsForSticker[i]
+    // Fade out the sticker
+    const sticker = figma.getNodeById(instanceId) as InstanceNode
+    if (sticker.opacity <= 0.04) {
+      sticker.remove()
+      instanceIdsWereDeleted.add(instanceId)
+    } else {
+      sticker.opacity -= 0.04
+    }
+  }
+
+  chronologicalInstanceIdsForSticker = chronologicalInstanceIdsForSticker.filter(id => !instanceIdsWereDeleted.has(id))
 }
 
 async function draw() {
   flying.forEach((node) => node.step());
   eraseOldTrails()
+  eraseOldStickers()
 }
 
 loop();
