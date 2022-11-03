@@ -6,8 +6,8 @@ const bounds = figma.viewport.bounds;
 const strokeWeight = 15;
 const cursorScale = 2;
 
-const maxLinesForThisHub = 5;
-const maxStickersForThisHub = 5;
+let maxLinesForThisHub = 5;
+let maxStickersForThisHub = 5;
 
 // Maps from remote id -> Figma id
 const lineIdMap: Record<number, string> = {};
@@ -42,7 +42,8 @@ type Message =
     }
   | { type: "presence"; id: HandId; point: [number, number]; cursorName: string; mode: PresenceMode }
   | { type: "presence"; id: HandId; gone: true }
-  | { type: "peace"; id: HandId; point: [number, number] };
+  | { type: "peace"; id: HandId; point: [number, number] }
+  | { type: "config"; maxLines: number; maxStickers: number };
 
 function cameraPointToFigmaPoint(point: [number, number]): [number, number] {
   return [
@@ -129,6 +130,13 @@ const colors: Array<Color> = [
 /////////////////////////
 
 figma.ui.onmessage = (msg: Message) => {
+
+  if (msg.type === "config") {
+    console.log('received config', msg)
+    maxLinesForThisHub = msg.maxLines
+    maxStickersForThisHub = msg.maxStickers
+  }
+  
   if (msg.type === "presence") {
     let presence: Presence;
 

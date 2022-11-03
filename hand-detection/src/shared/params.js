@@ -46,6 +46,12 @@ export const STATE = {
 
     // What name appears next to cursors created by this instance?
     cursorName: "Figmate",
+    
+    // What's the maximum number of lines allowed on the canvas at once in this hub?
+    maxLinesPersisting: 15,
+    
+    // What's the maximum number of stickers allowed on the canvas at once in this hub?
+    maxStickersPersisting: 20,
   },
 };
 export const MEDIAPIPE_HANDS_CONFIG = {

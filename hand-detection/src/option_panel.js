@@ -14,6 +14,7 @@
  * limitations under the License.
  * =============================================================================
  */
+import { syncConfig } from './drawing.ts'
 import * as handdetection from '@tensorflow-models/hand-pose-detection';
 import * as tf from '@tensorflow/tfjs-core';
 
@@ -97,6 +98,20 @@ function showDrawingConfigs(drawingConfigFolder) {
   ).step(5);
 
   drawingConfigFolder.add(params.STATE.drawingConfig, "cursorName");
+  
+  drawingConfigFolder.add(
+    params.STATE.drawingConfig,
+    'maxLinesPersisting',
+    1,
+    100,
+  ).step(1).onChange(syncConfig);
+
+  drawingConfigFolder.add(
+    params.STATE.drawingConfig,
+    'maxStickersPersisting',
+    1,
+    100,
+  ).step(1).onChange(syncConfig);
 }
 
 /**

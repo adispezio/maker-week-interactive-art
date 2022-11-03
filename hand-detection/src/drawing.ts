@@ -49,6 +49,24 @@ enum KeyPointID {
   PinkyFingerTip,
 }
 
+const ws = new WebSocket("ws://localhost:16001");
+
+export const syncConfig = () => {
+  ws.send(
+    JSON.stringify({
+      type: "config",
+      maxLines: STATE.drawingConfig.maxLinesPersisting,
+      maxStickers: STATE.drawingConfig.maxStickersPersisting,
+    })
+  )
+}
+
+ws.onopen = syncConfig
+
+ws.onmessage = (_ => {
+  syncConfig()
+})
+
 function distance(p1: { x: number; y: number }, p2: { x: number; y: number }) {
   return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
 }
@@ -211,6 +229,7 @@ export function handleFrame(
   tfHands: Array<TFHand>,
   ctx: CanvasRenderingContext2D
 ) {
+  console.log('hi')
   frameId++;
   tfHands = (tfHands || []).filter((tfHand) => Object.keys(tfHand).length > 0);
 
