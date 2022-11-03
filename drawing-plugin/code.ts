@@ -74,7 +74,7 @@ enum PeaceState {
 }
 let peaceState = PeaceState.DEFAULT;
 let lastNormalizedPointForPeace: number[];
-let peaceObject : ComponentNode
+let peaceObject : InstanceNode
 
 /////// images
 
@@ -172,7 +172,7 @@ figma.ui.onmessage = (msg: Message) => {
         //peaceObject = figma.createNodeFromSvg(peaceSvg);
         const randomNumber = Math.floor(Math.random() * componentHashes.length);
         figma.importComponentByKeyAsync(componentHashes[randomNumber]).then((newComponent) => {
-          peaceObject = newComponent.clone()
+          peaceObject = newComponent.createInstance()
           peaceObject.x = viewportPoint[0];
           peaceObject.y = viewportPoint[1];
 
@@ -341,7 +341,7 @@ async function draw() {
 
 loop();
 async function loop() {
-  setup();
+  // setup();
   while (true) {
     draw();
     const DRAW_DELAY_MS = 5;
