@@ -4,11 +4,14 @@ figma.ui.hide();
 const bounds = figma.viewport.bounds;
 
 const strokeWeight = 5;
+const maxLinesForThisHub = 5;
 
 // Maps from remote id -> Figma id
 const lineIdMap: Record<number, string> = {};
 const lineToTrailData: Record<number, TrailData> = {};
 const handIdMap: Record<number, Presence> = {};
+
+let remoteIdsChronological: number[] = [];
 
 // Maps from msg ID to a random color.
 type RGBType = {
@@ -231,6 +234,7 @@ const renderVector = (
       },
     ];
     lineIdMap[msgId] = vector.id;
+    remoteIdsChronological.push(msgId);
     lineToTrailData[msgId] = {points: []}
   }
 
@@ -377,8 +381,10 @@ async function setup() {
   flying.push(new FlyingNode());
 }
 
-const eraseDeadTrails = () => {
-  for (const msgId in lineToTrailData) {
+const eraseOldTrails = () => {
+  const remoteIdsWereDeleted: Set<number> = new Set()
+  for (let i = 0; i < remoteIdsChronological.length - maxLinesForThisHub; i++) {
+    const msgId = remoteIdsChronological[i]
     // Erase the next point in the trail if the presence is gone
     const trailData = lineToTrailData[msgId]
     if (!handIdMap[msgId] && trailData.points.length > 0) {
@@ -387,13 +393,16 @@ const eraseDeadTrails = () => {
     } else if (!handIdMap[msgId] && trailData.points.length == 0) {
       figma.getNodeById(lineIdMap[msgId])?.remove()
       delete lineIdMap[msgId]
+      remoteIdsWereDeleted.add(msgId)
     }
   }
+
+  remoteIdsChronological = remoteIdsChronological.filter(id => !remoteIdsWereDeleted.has(id))
 }
 
 async function draw() {
   flying.forEach((node) => node.step());
-  eraseDeadTrails()
+  eraseOldTrails()
 }
 
 loop();
