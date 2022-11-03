@@ -42,6 +42,16 @@ export async function setupDatGui(urlParams) {
   showDrawingConfigs(drawingFolder);
   drawingFolder.open();
 
+  const buttonLi = document.createElement("li");
+  const button = document.createElement("button");
+  button.innerText = "Reset to defaults";
+  button.onclick = () => {
+    localStorage.removeItem("drawingConfig");
+    window.location.reload();
+  };
+  buttonLi.appendChild(button);
+  gui.__ul.appendChild(buttonLi);
+
   return gui;
 }
 
