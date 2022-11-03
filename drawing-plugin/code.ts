@@ -179,6 +179,8 @@ figma.ui.onmessage = (msg: Message) => {
           setTimeout(function () {
             if (peaceState == PeaceState.TRIGGERED_OBJECT) {
               // Once we place the item, update the state.
+              peaceObject.x -= peaceObject.width/4
+              peaceObject.y -= peaceObject.height/4
               peaceObject.rescale(1.5);
               peaceState = PeaceState.PLACED_OBJECT;
             }
