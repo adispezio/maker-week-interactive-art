@@ -18,16 +18,19 @@ type RGBType = {
 };
 const msgIdToRandomColor: Record<number, RGBType> = {};
 
+type LineId = number;
+type HandId = number;
+
 type Message =
   | {
       type: "line";
-      id: number;
-      handId: number;
+      id: LineId;
+      handId: HandId;
       points: Array<[number, number]>;
     }
-  | { type: "presence"; id: number; point: [number, number] }
-  | { type: "presence"; id: number; gone: true }
-  | { type: "peace"; id: number; point: [number, number] };
+  | { type: "presence"; id: HandId; point: [number, number] }
+  | { type: "presence"; id: HandId; gone: true }
+  | { type: "peace"; id: HandId; point: [number, number] };
 
 function cameraPointToFigmaPoint(point: [number, number]): [number, number] {
   return [
