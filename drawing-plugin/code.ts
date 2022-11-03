@@ -94,13 +94,14 @@ type Color = {r: number, g: number, b: number}
 // Gesture detection stuff
 enum PeaceState {
   DEFAULT,
+  CREATING_OBJECT,
   TRIGGERED_OBJECT,
   PLACED_OBJECT,
   WAIT_FOR_DELAY,
 }
 let peaceState = PeaceState.DEFAULT;
 let lastNormalizedPointForPeace: number[];
-let peaceObject : InstanceNode
+let peaceObjectId : string = '-1:-1'
 
 /////// images
 
@@ -195,39 +196,50 @@ figma.ui.onmessage = (msg: Message) => {
         // We got a gesture and we haven't decided to place something yet!
         // Let's trigger something and register the point we triggered it at.
         lastNormalizedPointForPeace = normalizedPoint;
-        peaceState = PeaceState.TRIGGERED_OBJECT;
+        peaceState = PeaceState.CREATING_OBJECT;
 
-        // Create a new object to follow the hand!
-        //peaceObject = figma.createNodeFromSvg(peaceSvg);
-        const randomNumber = Math.floor(Math.random() * componentHashes.length);
-        figma.importComponentByKeyAsync(componentHashes[randomNumber]).then((newComponent) => {
-          peaceObject = newComponent.createInstance()
+        if (peaceObjectId === '-1:-1') {
+          const randomNumber = Math.floor(Math.random() * componentHashes.length);
+          // Create a new instance of a sticker to follow the hand!
+          figma.importComponentByKeyAsync(componentHashes[randomNumber]).then((newComponent) => {
+            const peaceObject = newComponent.createInstance()
+            peaceObjectId = peaceObject.id
+            peaceState = PeaceState.TRIGGERED_OBJECT;
 
-          chronologicalInstanceIdsForSticker.push(peaceObject.id)
-
-          peaceObject.opacity = 0.5;
+            chronologicalInstanceIdsForSticker.push(peaceObject.id)
+  
+            peaceObject.opacity = 0.5;
           peaceObject.relativeTransform = [
-            [1.5, 0, viewportPoint[0] - peaceObject.width / 2],
+            [1.5, 0, viewportPoint[0]   - peaceObject.width / 2],
             [0, 1.5, viewportPoint[0] - peaceObject.height / 2],
           ];
 
           setTimeout(function () {
             if (peaceState == PeaceState.TRIGGERED_OBJECT) {
               // Once we place the item, update the state.
+              peaceObject.x -= peaceObject.width/4
+              peaceObject.y -= peaceObject.height/4
+              peaceObject.rescale(1.5);
               peaceState = PeaceState.PLACED_OBJECT;
-              peaceObject.opacity = 1;
             }
           }, 1000);
         })
 
         break;
       }
+      case PeaceState.CREATING_OBJECT: {
+        // Waiting for object to be created just in case it takes a while
+        break;
+      }
       case PeaceState.TRIGGERED_OBJECT: {
         // We have triggered setTimeout but it hasn't triggered yet. update the position of the object created
+        const peaceObject = figma.getNodeById(peaceObjectId) as InstanceNode
         if (peaceObject != null) {
+          console.log ("moving " + peaceObjectId)
           peaceObject.x = viewportPoint[0];
           peaceObject.y = viewportPoint[1];
         }
+        break;
       }
       case PeaceState.PLACED_OBJECT: {
         // We have now placed an object. we will now check the positions to ensure they are far away.
@@ -241,9 +253,11 @@ figma.ui.onmessage = (msg: Message) => {
             peaceState = PeaceState.WAIT_FOR_DELAY;
             setTimeout(function () {
               peaceState = PeaceState.DEFAULT;
+              peaceObjectId = '-1:-1'
             }, 300);
           }
         }
+        break;
       }
       case PeaceState.WAIT_FOR_DELAY: {
         // We have triggered setTimeout but it hasn't done anything yet. don't do anything here.
