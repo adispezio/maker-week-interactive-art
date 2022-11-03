@@ -87,8 +87,19 @@ let peaceObject : InstanceNode
 /////// images
 
 const componentHashes = [
-  '3841da106e54d554743f7b451a16c0a85fe539fd',
-  'ba350bfa63bb11fd724f216635d89ecae4d9f402'
+  '3841da106e54d554743f7b451a16c0a85fe539fd', // peace
+  'ba350bfa63bb11fd724f216635d89ecae4d9f402', // slay
+  '2c83518d4dd76855bf5f63e3943e365d1c018b0d', // taco
+  '0d0505bc86661da814026b1ddd57ba6edb2dc5a9', // flan 
+  '020958c2bb11fab15c03df71f173adc0a6176915', // onigiri
+  '8907f725c510fbec4a97f681b803f8d666f09633', // golden gate
+  'a1d77250c56697bf34bf1fd45b95b23b229cf7ba', // golden gate 2
+  'dbd2e03ac5327502b78e6d987ef534e453843292', // big apple
+  '848f91b2ddf7b633fd69b5674c6df21b5c968cde', // statue liberty
+  '177b4e9e2b8c9643139dd26b1ca201ec21d817a2', // empire state
+  '14c73ac92e597c6127117716c9b2b8614a0cb04d', // rock on
+  '07279b98a37715de081a3652dc78964a1ee79bea', // party time
+  '7f33b657d888f46983c30374cf7eee231ffd15f7', // lets jam dino
 ]
 
 const cursorHashesToColor: Record<string, Color> = {
