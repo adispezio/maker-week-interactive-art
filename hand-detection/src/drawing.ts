@@ -1,16 +1,16 @@
 import simplify from "./simplify";
 import sortBy from "lodash/sortBy";
-import range from "lodash/range";
+import difference from "lodash/difference";
 
 // What's the largest number of pixels we could expect a fingertip to move in
 // one frame?
-const MAX_PX_MOVED_PER_FRAME = 100;
+const MAX_PX_MOVED_PER_FRAME = 50;
 
 // How many frames is a hand allowed to disappear for before coming back?
 const MAX_HAND_FRAME_GAP = 10;
 
 // How many frames is a hand allowed to not point before we cut off the line?
-const MAX_LINE_FRAME_GAP = 5;
+const MAX_LINE_FRAME_GAP = 10;
 
 type KeyPoint = {
   // Coords are screen pixels, x in 0..640 and y in 0..480
@@ -114,6 +114,69 @@ type DrawingHand = {
   } | null;
 };
 
+// Map the hands we're getting from TensorFlow to our existing state.
+// We can't trust the indices in `tfHands` to be stable, so we need to use a
+// heuristic to determine which hand is which:
+// - For every combination of old hand and new hand, calculate the
+//   distance between their cursor locations (the base of the index finger).
+// - Go through those pairs in order of ascending distance.
+// - For each pair, if neither the old nor new hand have already been assigned,
+//   decide if we think it's a plausible match based on the distance and the
+//   last time we saw the old hand. If it is valid, record it and remove both
+//   the old and new hand from further consideration.
+function matchHandPairs(
+  handsById: Record<number, DrawingHand>,
+  tfHands: Array<TFHand>,
+  frameId: number
+): [
+  handByTFHandIndex: Array<DrawingHand | null>,
+  missingHandIds: Array<number>
+] {
+  const handPairs = sortBy(
+    Object.entries(handsById).flatMap(([handId, hand]) =>
+      tfHands.map((tfHand, tfHandIdx) => {
+        const tfHandLocation = tfHand.keypoints[KeyPointID.IndexFingerMcp];
+        return {
+          handId: Number(handId),
+          tfHandIdx,
+          distance: distance(
+            { x: hand.point[0], y: hand.point[1] },
+            tfHandLocation
+          ),
+          location: [tfHandLocation.x, tfHandLocation.y] as [number, number],
+        };
+      })
+    ),
+    (pair) => pair.distance
+  );
+
+  const seenHandIds = new Set<number>();
+  const handByTFHandIndex: Array<DrawingHand | null> = new Array(
+    tfHands.length
+  ).fill(null);
+
+  for (const { handId, tfHandIdx, distance, location } of handPairs) {
+    if (seenHandIds.has(handId)) continue;
+    if (handByTFHandIndex[tfHandIdx] != null) continue;
+
+    const hand = handsById[handId];
+    const framesElapsed = frameId - hand.lastSeenFrameId;
+
+    if (distance <= framesElapsed * MAX_PX_MOVED_PER_FRAME) {
+      seenHandIds.add(handId);
+      handByTFHandIndex[tfHandIdx] = hand;
+
+      hand.point = location;
+      hand.lastSeenFrameId = frameId;
+    }
+  }
+
+  return [
+    handByTFHandIndex,
+    difference(Object.keys(handsById).map(Number), Array.from(seenHandIds)),
+  ];
+}
+
 let handsById: Record<number, DrawingHand> = {};
 let nextHandId = 0;
 let nextLineId = 0;
@@ -126,60 +189,17 @@ export function handleFrame(
   frameId++;
   tfHands = (tfHands || []).filter((tfHand) => Object.keys(tfHand).length > 0);
 
-  // First, map the hands we're getting from TensorFlow to our existing state.
-  // We can't trust the indices in the array to be stable, so we need to use a
-  // heuristic to determine which hand is which:
-  // - For each pair of old hand and new hand, calculate the distance between
-  //   their index finger tip locations.
-  // - Go through those pairs in order of ascending distance.
-  // - For each pair, if neither the old nor new hand are already taken, decide
-  //   if we think it's a valid mapping based on the distance and the last time
-  //   we saw the old hand. If it is valid, record it and remove both hands
-  //   from further consideration.
-  const handPairs = sortBy(
-    Object.entries(handsById).flatMap(([handId, oldHand]) =>
-      tfHands.map((newHand, newHandIdx) => {
-        const newHandLocation = newHand.keypoints[KeyPointID.IndexFingerTip];
-        return {
-          handId: Number(handId),
-          newHandIdx,
-          distance: distance(
-            { x: oldHand.point[0], y: oldHand.point[1] },
-            newHandLocation
-          ),
-          location: [newHandLocation.x, newHandLocation.y] as [number, number],
-        };
-      })
-    ),
-    (pair) => pair.distance
+  const [handByTFHandIndex, missingHandIds] = matchHandPairs(
+    handsById,
+    tfHands,
+    frameId
   );
-  const newHandIdxByOldHandId: Record<number, number> = {};
-  const oldHandIdByNewHandIdx: Record<number, number> = {};
-  const removedHandIds = new Set(Object.keys(handsById).map(Number));
-  const newHandIndices = new Set(range(0, tfHands.length));
 
-  for (const { handId, newHandIdx, distance, location } of handPairs) {
-    if (newHandIdxByOldHandId[handId] != null) continue;
-    if (oldHandIdByNewHandIdx[newHandIdx] != null) continue;
-
-    const oldHand = handsById[handId];
-    const framesElapsed = frameId - oldHand.lastSeenFrameId;
-    if (distance > framesElapsed * MAX_PX_MOVED_PER_FRAME) {
-      continue;
-    }
-
-    newHandIdxByOldHandId[handId] = newHandIdx;
-    oldHandIdByNewHandIdx[newHandIdx] = handId;
-    removedHandIds.delete(handId);
-    newHandIndices.delete(newHandIdx);
-    oldHand.point = location;
-    oldHand.lastSeenFrameId = frameId;
-  }
-
-  // For each removed hand that's old enough, send a "gone" message.
-  for (const handId of removedHandIds) {
-    const oldHand = handsById[handId];
-    const framesElapsed = frameId - oldHand.lastSeenFrameId;
+  // For each missing hand that's old enough, delete it and send a "gone"
+  // message to remove its presence indicator.
+  for (const handId of missingHandIds) {
+    const hand = handsById[handId];
+    const framesElapsed = frameId - hand.lastSeenFrameId;
 
     if (framesElapsed > MAX_HAND_FRAME_GAP) {
       delete handsById[handId];
@@ -208,20 +228,17 @@ export function handleFrame(
     const indexTip3D = tfHand.keypoints3D[KeyPointID.IndexFingerTip];
     const middleTip3D = tfHand.keypoints3D[KeyPointID.MiddleFingerTip];
 
-    const oldHandId = oldHandIdByNewHandIdx[tfHandIndex];
-
-    let hand: DrawingHand;
-    if (oldHandId == null) {
+    // Reuse the existing hand if there is one, otherwise create a new one.
+    let hand = handByTFHandIndex[tfHandIndex];
+    if (hand == null) {
       const id = nextHandId++;
-      handsById[id] = {
+      hand = {
         id,
         point: [indexBase.x, indexBase.y],
         lastSeenFrameId: frameId,
         line: null,
       };
-      hand = handsById[id];
-    } else {
-      hand = handsById[oldHandId];
+      handsById[id] = hand;
     }
 
     // Regardless of whether they're gesturing, send a message containing the
