@@ -31,120 +31,21 @@ export async function setupDatGui(urlParams) {
   const gui = new dat.GUI({width: 300});
   gui.domElement.id = 'gui';
 
-  // The camera folder contains options for video settings.
-  const cameraFolder = gui.addFolder('Camera');
-  const fpsController = cameraFolder.add(params.STATE.camera, 'targetFPS');
-  fpsController.onFinishChange((_) => {
-    params.STATE.isTargetFPSChanged = true;
-  });
-  const sizeController = cameraFolder.add(
-      params.STATE.camera, 'sizeOption', Object.keys(params.VIDEO_SIZE));
-  sizeController.onChange(_ => {
-    params.STATE.isSizeOptionChanged = true;
-  });
-  cameraFolder.open();
-
   // The model folder contains options for model selection.
   const modelFolder = gui.addFolder('Model');
+  const maxNumHands = urlParams.get('maxNumHands');
 
-  const model = urlParams.get('model');
-  let type = urlParams.get('type');
-  let maxNumHands = urlParams.get('maxNumHands');
-
-  switch (model) {
-    case 'mediapipe_hands':
-      params.STATE.model = handdetection.SupportedModels.MediaPipeHands;
-      if (type !== 'full' && type !== 'lite') {
-        // Nulify invalid value.
-        type = null;
-      }
-      if (maxNumHands == null || maxNumHands < 1 ) {
-        // Nulify invalid value.
-        maxNumHands = 2;
-      }
-      break;
-    default:
-      alert(`${urlParams.get('model')}`);
-      break;
-  }
-
-  const modelController = modelFolder.add(
-      params.STATE, 'model', Object.values(handdetection.SupportedModels));
-
-  modelController.onChange(_ => {
-    params.STATE.isModelChanged = true;
-    showModelConfigs(modelFolder);
-    showBackendConfigs(backendFolder);
-  });
-
-  showModelConfigs(modelFolder, type, maxNumHands);
+  showModelConfigs(modelFolder, undefined, maxNumHands);
 
   modelFolder.open();
-
-  const backendFolder = gui.addFolder('Backend');
-
-  showBackendConfigs(backendFolder);
-
-  backendFolder.open();
 
   return gui;
 }
 
-async function showBackendConfigs(folderController) {
-  // Clean up backend configs for the previous model.
-  const fixedSelectionCount = 0;
-  while (folderController.__controllers.length > fixedSelectionCount) {
-    folderController.remove(
-        folderController
-            .__controllers[folderController.__controllers.length - 1]);
-  }
-  const backends = params.MODEL_BACKEND_MAP[params.STATE.model];
-  // The first element of the array is the default backend for the model.
-  params.STATE.backend = backends[0];
-  const backendController =
-      folderController.add(params.STATE, 'backend', backends);
-  backendController.name('runtime-backend');
-  backendController.onChange(async backend => {
-    params.STATE.isBackendChanged = true;
-    await showFlagSettings(folderController, backend);
-  });
-  await showFlagSettings(folderController, params.STATE.backend);
-}
-
-function showModelConfigs(folderController, type, maxNumHands) {
-  // Clean up model configs for the previous model.
-  // The first constroller under the `folderController` is the model
-  // selection.
-  const fixedSelectionCount = 1;
-  while (folderController.__controllers.length > fixedSelectionCount) {
-    folderController.remove(
-        folderController
-            .__controllers[folderController.__controllers.length - 1]);
-  }
-
-  switch (params.STATE.model) {
-    case handdetection.SupportedModels.MediaPipeHands:
-      addMediaPipeHandsControllers(folderController, type, maxNumHands);
-      break;
-    default:
-      alert(`Model ${params.STATE.model} is not supported.`);
-  }
-}
-
-// The MediaPipeHands model config folder contains options for MediaPipeHands config
-// settings.
-function addMediaPipeHandsControllers(modelConfigFolder, type, maxNumHands) {
+function showModelConfigs(modelConfigFolder, type, maxNumHands) {
   params.STATE.modelConfig = {...params.MEDIAPIPE_HANDS_CONFIG};
   params.STATE.modelConfig.type = type != null ? type : 'full';
   params.STATE.modelConfig.maxNumHands = maxNumHands != null ? maxNumHands : 2;
-
-  const typeController = modelConfigFolder.add(
-      params.STATE.modelConfig, 'type', ['lite', 'full']);
-  typeController.onChange(_ => {
-    // Set isModelChanged to true, so that we don't render any result during
-    // changing models.
-    params.STATE.isModelChanged = true;
-  });
 
   const maxNumHandsController = modelConfigFolder.add(
     params.STATE.modelConfig, 'maxNumHands', 1, 10).step(1);

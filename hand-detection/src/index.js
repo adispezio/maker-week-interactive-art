@@ -28,7 +28,7 @@ import * as handdetection from "@tensorflow-models/hand-pose-detection";
 
 import { Camera } from "./camera";
 import { setupDatGui } from "./option_panel";
-import { STATE } from "./shared/params";
+import { STATE, MODEL_BACKEND_MAP } from "./shared/params";
 import { setupStats } from "./shared/stats_panel";
 import { setBackendAndEnvFlags } from "./shared/util";
 import * as drawing from "./drawing.ts";
@@ -170,7 +170,10 @@ async function renderPrediction() {
 }
 
 async function app() {
-  await setupDatGui(new Map([["model", "mediapipe_hands"]]));
+  STATE.model = 'MediaPipeHands';
+  STATE.backend = 'mediapipe-gpu';
+
+  await setupDatGui(new Map([["maxNumHands", 10]]));
 
   stats = setupStats();
 
