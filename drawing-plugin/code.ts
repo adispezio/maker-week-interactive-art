@@ -3,7 +3,9 @@ figma.ui.hide();
 
 const bounds = figma.viewport.bounds;
 
-const strokeWeight = 5;
+const strokeWeight = 15;
+const cursorScale = 2;
+
 const maxLinesForThisHub = 5;
 const maxStickersForThisHub = 5;
 
@@ -189,17 +191,18 @@ figma.ui.onmessage = (msg: Message) => {
           peaceObject = newComponent.createInstance()
 
           chronologicalInstanceIdsForSticker.push(peaceObject.id)
-          
-          peaceObject.x = viewportPoint[0];
-          peaceObject.y = viewportPoint[1];
+
+          peaceObject.opacity = 0.5;
+          peaceObject.relativeTransform = [
+            [1.5, 0, viewportPoint[0] - peaceObject.width / 2],
+            [0, 1.5, viewportPoint[0] - peaceObject.height / 2],
+          ];
 
           setTimeout(function () {
             if (peaceState == PeaceState.TRIGGERED_OBJECT) {
               // Once we place the item, update the state.
-              peaceObject.x -= peaceObject.width/4
-              peaceObject.y -= peaceObject.height/4
-              peaceObject.rescale(1.5);
               peaceState = PeaceState.PLACED_OBJECT;
+              peaceObject.opacity = 1;
             }
           }, 1000);
         })
@@ -299,6 +302,7 @@ class Presence {
       await figma.loadFontAsync({ family: "Inter", style: "Medium" });
 
       this.node = component.createInstance();
+      this.node.scaleFactor = cursorScale;
 
       const pencil = this.node.findOne(child => child.name === "pencil") as BooleanOperationNode;
       pencil.fills = [
