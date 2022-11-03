@@ -43,6 +43,9 @@ export const STATE = {
     // How many frames must a line be captured for before we commit to creating
     // it and send it to the app?
     minLineFrames: 10,
+
+    // What name appears next to cursors created by this instance?
+    cursorName: "Figmate",
   },
 };
 export const MEDIAPIPE_HANDS_CONFIG = {

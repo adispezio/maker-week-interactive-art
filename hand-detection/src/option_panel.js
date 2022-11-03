@@ -95,6 +95,8 @@ function showDrawingConfigs(drawingConfigFolder) {
     0,
     50,
   ).step(5);
+
+  drawingConfigFolder.add(params.STATE.drawingConfig, "cursorName");
 }
 
 /**

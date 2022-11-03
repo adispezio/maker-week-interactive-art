@@ -173,6 +173,8 @@ async function app() {
   STATE.model = 'MediaPipeHands';
   STATE.backend = 'mediapipe-gpu';
 
+  STATE.ws = new WebSocket("ws://localhost:16001");
+
   await setupDatGui(new Map([["maxNumHands", 10]]));
 
   stats = setupStats();

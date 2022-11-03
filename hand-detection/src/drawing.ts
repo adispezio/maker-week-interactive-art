@@ -49,8 +49,6 @@ enum KeyPointID {
   PinkyFingerTip,
 }
 
-const ws = new WebSocket("ws://localhost:16001");
-
 function distance(p1: { x: number; y: number }, p2: { x: number; y: number }) {
   return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
 }
@@ -230,7 +228,7 @@ export function handleFrame(
 
     if (framesElapsed > STATE.drawingConfig.maxHandFrameGap) {
       delete handsById[handId];
-      ws.send(
+      STATE.ws.send(
         JSON.stringify({
           type: "presence",
           id: handId,
@@ -270,16 +268,6 @@ export function handleFrame(
       handsById[id] = hand;
     }
 
-    // Regardless of whether they're gesturing, send a message containing the
-    // indexBase's location for presence purposes.
-    ws.send(
-      JSON.stringify({
-        type: "presence",
-        id: hand.id,
-        point: [indexBase.x, indexBase.y],
-      })
-    );
-
     // Detect finger up or down in absolute orientation
     const indexUp = indexTip.y < indexDip.y;
     const middleUp = middleTip.y < middleDip.y;
@@ -302,6 +290,18 @@ export function handleFrame(
 
     const isPointing = !isPeaceSign && indexPointed && middleCurled;
 
+    // Regardless of whether they're gesturing, send a message containing the
+    // indexBase's location for presence purposes.
+    STATE.ws.send(
+      JSON.stringify({
+        type: "presence",
+        id: hand.id,
+        point: [indexBase.x, indexBase.y],
+        cursorName: STATE.drawingConfig.cursorName,
+        mode: isPointing ? "pencil" : "cursor",
+      })
+    );
+
     // Uncomment to debug gesture detection
     //console.log(
       //"%c%f0.2%f0.2",
@@ -322,7 +322,7 @@ export function handleFrame(
       }
 
       if (isPeaceSign) {
-        ws.send(
+        STATE.ws.send(
           JSON.stringify({
             type: "peace",
             id: hand.id,
@@ -356,7 +356,7 @@ export function handleFrame(
     const shouldSendMessage =
       frameId - hand.line.firstFrameId > STATE.drawingConfig.minLineFrames;
     if (shouldSendMessage) {
-      ws.send(
+      STATE.ws.send(
         JSON.stringify({
           type: "line",
           id: hand.line.id,
