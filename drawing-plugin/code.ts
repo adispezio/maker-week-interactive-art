@@ -4,7 +4,6 @@ figma.ui.hide();
 const bounds = figma.viewport.bounds;
 
 const strokeWeight = 5;
-const presenceCircleSize = 15;
 
 // Maps from remote id -> Figma id
 const lineIdMap: Record<number, string> = {};
@@ -66,6 +65,8 @@ const msgToRandomColor = (msg: Message): RGBType => {
   return randomColor;
 };
 
+type Color = {r: number, g: number, b: number}
+
 // Gesture detection stuff
 enum PeaceState {
   DEFAULT,
@@ -84,35 +85,54 @@ const componentHashes = [
   'ba350bfa63bb11fd724f216635d89ecae4d9f402'
 ]
 
+const cursorHashesToColor: Record<string, Color> = {
+  'a425fd9e401d40f98b57066fdd24dacca0d4362e': {r: 255 / 255, g: 199 / 255, b: 0 / 255},
+  'b8aa2a4b1c697218c65e1c541afc3321773c3273': {r: 242 / 255, g: 78 / 255, b: 30 / 255},
+  'c4d985d91467ca64a1291f00443335097b6603a6': {r: 238 / 255, g: 70 / 255, b: 211 / 255},
+  '7c22bdc624f9bfa531428546115adc90691c8f44': {r: 85 / 255, g: 81 / 255, b: 255 / 255},
+  '9c38ec1a541dc1e14a9ff2d959cb6048c4d58297': {r: 144 / 255, g: 124 / 255, b: 255 / 255},
+  '9d27eb1674e03a863c493216bd193070dd83aa46': {r: 27 / 255, g: 196 / 255, b: 125 / 255},
+  'e9dd5713e783b78adff530bb77354b02939ae0fd': {r: 0 / 255, g: 181 / 255, b: 206 / 255},
+  '984011f316b58fb6780fc782247783629295451f': {r: 24 / 255, g: 160 / 255, b: 251 / 255},
+  '88833500a5a512d9fa86a6f53cdb527d48fb878b': {r: 15 / 255, g: 169 / 255, b: 88 / 255},
+  'd8cb2d27ebd52eecbd9cb7a35d08dbda1f20bf7e': {r: 151 / 255, g: 71 / 255, b: 255 / 255},
+  '95713294623575c51e0b52514193d5616afe6a90': {r: 132 / 255, g: 132 / 255, b: 132 / 255},
+  '1f4b05c45ba610f02028e5c23fced8f37e32fa4b': {r: 210 / 255, g: 124 / 255, b: 44 / 255},
+}
+
 /////////////////////////
 
 figma.ui.onmessage = (msg: Message) => {
-  const randomColor = msgToRandomColor(msg);
-
+  
   if (msg.type === "presence") {
     let presence: Presence;
-
+    
     // If we previously created a circle for the same hand, update it
     if (handIdMap[msg.id] != null) {
       presence = handIdMap[msg.id];
     } else {
-      presence = new Presence(randomColor);
+      const randomColorKey = Object.keys(cursorHashesToColor)[Math.floor(Math.random() * Object.keys(cursorHashesToColor).length)]
+      presence = new Presence(randomColorKey);
       handIdMap[msg.id] = presence;
     }
 
     if ("gone" in msg) {
-      presence.node.remove();
+      presence.node?.remove();
       delete handIdMap[msg.id];
     } else {
       const [x, y] = cameraPointToFigmaPoint(msg.point);
-      presence.setX(bounds.x + x - presenceCircleSize / 2);
-      presence.setY(bounds.y + y - presenceCircleSize / 2);
+      presence.setX(bounds.x + x - presence.cursorSize / 2);
+      presence.setY(bounds.y + y - presence.cursorSize / 2);
       flying.map((node) => node.interactWithPresenceAt(presence));
     }
   }
 
   if (msg.type === "line") {
-    renderVector(msg.id, msg.points, randomColor)
+    const presence = handIdMap[msg.handId]
+    renderVector(msg.id, msg.points, cursorHashesToColor[presence.cursorHash])
+    if (presence.node) {
+      figma.currentPage.appendChild(presence.node)
+    }
   }
 
   if (msg.type === "peace") {
@@ -191,7 +211,7 @@ figma.ui.onmessage = (msg: Message) => {
 const renderVector = (
   msgId: number, 
   points: [number, number][], 
-  color: {r: number, g: number, b: number} = {r: 255, g: 255, b: 255}
+  color: Color = {r: 255, g: 255, b: 255}
 ) => {
   let vector: VectorNode;
   // If we previously created a vector for the same line, update it
@@ -233,30 +253,30 @@ const renderVector = (
 }
 
 class Presence {
-  node: EllipseNode;
+  node?: InstanceNode;
+  cursorHash: string;
   vx: number = 0;
   vy: number = 0;
+  cursorSize = 32;
 
-  constructor(color: { r: number; g: number; b: number }) {
-    this.node = figma.createEllipse();
-    this.node.resize(presenceCircleSize, presenceCircleSize);
-    this.node.fills = [
-      {
-        type: "SOLID",
-        color,
-      },
-    ];
+  constructor(cursorHash: string) {
+    this.cursorHash = cursorHash
+    figma.importComponentByKeyAsync(cursorHash).then((newComponent) => {
+      this.node = newComponent.createInstance()
+    })
   }
 
   setX(x: number) {
-    const rawVx = x - this.node.x;
+    if (!this.node) {return} 
+    const rawVx = x - this.node.x - this.cursorSize / 2;
     const smoothedVx = lerp(this.vx, rawVx, 0.1);
     this.vx = smoothedVx;
     this.node.x = x;
   }
-
+  
   setY(y: number) {
-    const rawVy = y - this.node.y;
+    if (!this.node) {return} 
+    const rawVy = y - this.node.y - this.cursorSize / 2;
     const smoothedVy = lerp(this.vy, rawVy, 0.1);
     this.vy = smoothedVy;
     this.node.y = y;
@@ -310,6 +330,7 @@ class FlyingNode {
   }
 
   interactWithPresenceAt(presence: Presence) {
+    if (!presence.node) {return}
     const presenceR = presence.node.width / 2;
     const thisNodeR = this.node.width / 2;
     const distBetween = dist(
@@ -362,8 +383,8 @@ const eraseDeadTrails = () => {
       renderVector(Number(msgId), trailData.points)
     } else if (!handIdMap[msgId] && trailData.points.length == 0) {
       figma.getNodeById(lineIdMap[msgId])?.remove()
+      delete lineIdMap[msgId]
     }
-    console.log(trailData.points.length)
   }
 }
 
