@@ -7,10 +7,14 @@ import difference from "lodash/difference";
 const MAX_PX_MOVED_PER_FRAME = 50;
 
 // How many frames is a hand allowed to disappear for before coming back?
-const MAX_HAND_FRAME_GAP = 10;
+const MAX_HAND_FRAME_GAP = 20;
 
 // How many frames is a hand allowed to not point before we cut off the line?
-const MAX_LINE_FRAME_GAP = 10;
+const MAX_LINE_FRAME_GAP = 20;
+
+// How many frames must a line be captured for before we start sending it to
+// the app?
+const MIN_LINE_FRAMES = 10;
 
 type KeyPoint = {
   // Coords are screen pixels, x in 0..640 and y in 0..480
@@ -73,6 +77,39 @@ function distance3D(
   );
 }
 
+function magnitude(p: { x: number; y: number; z: number }) {
+  return Math.sqrt(p.x ** 2 + p.y ** 2 + p.z ** 2);
+}
+
+function dotProduct(
+  p1: { x: number; y: number; z: number },
+  p2: { x: number; y: number; z: number }
+) {
+  return p1.x * p2.x + p1.y * p2.y + p1.z * p2.z;
+}
+
+function subtractPoints(
+  p1: { x: number; y: number; z: number },
+  p2: { x: number; y: number; z: number }
+) {
+  return { x: p1.x - p2.x, y: p1.y - p2.y, z: p1.z - p2.z };
+}
+
+function radiansToDegrees(rads: number) {
+  return (rads * 180) / Math.PI;
+}
+
+function angleBetweenPoints(
+  pivot: { x: number; y: number; z: number },
+  p1: { x: number; y: number; z: number },
+  p2: { x: number; y: number; z: number }
+) {
+  const p1N = subtractPoints(p1, pivot);
+  const p2N = subtractPoints(p2, pivot);
+  const cosValue = dotProduct(p1N, p2N) / (magnitude(p1N) * magnitude(p2N));
+  return radiansToDegrees(Math.acos(cosValue));
+}
+
 function copyPoint(out: [number, number], p: [number, number]) {
   out[0] = p[0];
   out[1] = p[1];
@@ -110,6 +147,7 @@ type DrawingHand = {
   line: {
     id: number;
     points: Array<[number, number]>;
+    firstFrameId: number;
     lastSeenFrameId: number;
   } | null;
 };
@@ -171,10 +209,12 @@ function matchHandPairs(
     }
   }
 
-  return [
-    handByTFHandIndex,
-    difference(Object.keys(handsById).map(Number), Array.from(seenHandIds)),
-  ];
+  const missingHandIds = difference(
+    Object.keys(handsById).map(Number),
+    Array.from(seenHandIds)
+  );
+
+  return [handByTFHandIndex, missingHandIds];
 }
 
 let handsById: Record<number, DrawingHand> = {};
@@ -225,7 +265,9 @@ export function handleFrame(
     const pinkyTip = tfHand.keypoints[KeyPointID.PinkyFingerTip];
 
     const wrist3D = tfHand.keypoints3D[KeyPointID.Wrist];
+    const indexBase3D = tfHand.keypoints3D[KeyPointID.IndexFingerMcp];
     const indexTip3D = tfHand.keypoints3D[KeyPointID.IndexFingerTip];
+    const middleBase3D = tfHand.keypoints3D[KeyPointID.MiddleFingerMcp];
     const middleTip3D = tfHand.keypoints3D[KeyPointID.MiddleFingerTip];
 
     // Reuse the existing hand if there is one, otherwise create a new one.
@@ -251,16 +293,27 @@ export function handleFrame(
       })
     );
 
-    // Detect finger up or down
+    // Detect finger up or down in absolute orientation
     const indexUp = indexTip.y < indexDip.y;
     const middleUp = middleTip.y < middleDip.y;
     const ringDown = ringTip.y > ringDip.y;
     const pinkyDown = pinkyTip.y > pinkyDip.y;
 
-    const isPeaceSign = indexUp && middleUp && ringDown && pinkyDown;
-    const isPointing =
-      !isPeaceSign &&
-      distance3D(indexTip3D, wrist3D) > 1.4 * distance(middleTip3D, wrist3D);
+    const indexPointed =
+      angleBetweenPoints(indexBase3D, wrist3D, indexTip3D) > 60;
+
+    const middleCurled =
+      angleBetweenPoints(middleBase3D, wrist3D, middleTip3D) < 120;
+
+    const isPeaceSign =
+      indexUp &&
+      middleUp &&
+      ringDown &&
+      pinkyDown &&
+      indexPointed &&
+      !middleCurled;
+
+    const isPointing = !isPeaceSign && indexPointed && middleCurled;
 
     if (!isPointing) {
       // If too many frames have elapsed since the last time we saw this hand
@@ -291,6 +344,7 @@ export function handleFrame(
       hand.line = {
         id: lineId,
         points: [],
+        firstFrameId: frameId,
         lastSeenFrameId: frameId,
       };
     }
@@ -304,16 +358,21 @@ export function handleFrame(
     smoothedPoints = chaikinSmooth(smoothedPoints);
 
     // Send message containing this line's updated geometry
-    ws.send(
-      JSON.stringify({
-        type: "line",
-        id: hand.line.id,
-        handId: hand.id,
-        points: smoothedPoints,
-      })
-    );
+    const shouldSendMessage =
+      frameId - hand.line.firstFrameId > MIN_LINE_FRAMES;
+    if (shouldSendMessage) {
+      ws.send(
+        JSON.stringify({
+          type: "line",
+          id: hand.line.id,
+          handId: hand.id,
+          points: smoothedPoints,
+        })
+      );
+    }
 
     // Render debug visualization
+    ctx.strokeStyle = shouldSendMessage ? "white" : "gray";
     ctx.beginPath();
     ctx.moveTo(smoothedPoints[0][0], smoothedPoints[0][1]);
     for (const point of smoothedPoints.slice(1)) {
