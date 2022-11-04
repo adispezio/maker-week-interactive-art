@@ -49,13 +49,17 @@ type Message =
       points: Array<[number, number]>;
     }
   | {
+      type: "lineDelete";
+      id: LineId;
+    }
+  | {
       type: "presence";
       id: HandId;
       point: [number, number];
       cursorName: string;
       mode: PresenceMode;
     }
-  | { type: "presence"; id: HandId; gone: true }
+  | { type: "presenceGone"; id: HandId }
   | { type: "peace"; id: HandId; point: [number, number] }
   | { type: "config"; config: DrawingConfig };
 
@@ -160,19 +164,19 @@ figma.ui.onmessage = (msg: Message) => {
       presence = new Presence(randomColor);
       handIdMap[msg.id] = presence;
     }
+    presence.setCursorName(msg.cursorName);
+    presence.setMode(msg.mode);
 
-    if ("gone" in msg) {
-      presence.remove();
-      delete handIdMap[msg.id];
-    } else {
-      presence.setCursorName(msg.cursorName);
-      presence.setMode(msg.mode);
+    const [x, y] = cameraPointToFigmaPoint(msg.point);
+    presence.setX(bounds.x + x);
+    presence.setY(bounds.y + y);
+    flying.map((node) => node.interactWithPresenceAt(presence));
+  }
 
-      const [x, y] = cameraPointToFigmaPoint(msg.point);
-      presence.setX(bounds.x + x);
-      presence.setY(bounds.y + y);
-      flying.map((node) => node.interactWithPresenceAt(presence));
-    }
+  if (msg.type === "presenceGone") {
+    const presence = handIdMap[msg.id];
+    presence?.remove();
+    delete handIdMap[msg.id];
   }
 
   if (msg.type === "line") {
@@ -181,6 +185,11 @@ figma.ui.onmessage = (msg: Message) => {
     if (presence.node) {
       figma.currentPage.appendChild(presence.node);
     }
+  }
+
+  if (msg.type === "lineDelete") {
+    figma.getNodeById(lineIdMap[msg.id])?.remove();
+    delete lineIdMap[msg.id];
   }
 
   if (msg.type === "peace") {
@@ -277,7 +286,7 @@ figma.ui.onmessage = (msg: Message) => {
 const renderVector = (
   msgId: number,
   points: [number, number][],
-  color: Color = { r: 255, g: 255, b: 255 }
+  color: Color = { r: 1, g: 1, b: 1 }
 ) => {
   let vector: VectorNode;
   // If we previously created a vector for the same line, update it

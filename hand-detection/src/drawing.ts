@@ -52,22 +52,26 @@ enum KeyPointID {
 
 const ws = new WebSocket("ws://localhost:16001");
 
-export const syncConfig = throttle(() => {
-  localStorage.setItem("drawingConfig", JSON.stringify(STATE.drawingConfig));
+export const syncConfig = throttle(
+  () => {
+    localStorage.setItem("drawingConfig", JSON.stringify(STATE.drawingConfig));
 
-  ws.send(
-    JSON.stringify({
-      type: "config",
-      config: STATE.drawingConfig,
-    })
-  );
-}, 1000, { leading: false, trailing: true });
+    ws.send(
+      JSON.stringify({
+        type: "config",
+        config: STATE.drawingConfig,
+      })
+    );
+  },
+  1000,
+  { leading: false, trailing: true }
+);
 
-ws.onopen = syncConfig
+ws.onopen = syncConfig;
 
-ws.onmessage = (_ => {
-  syncConfig()
-})
+ws.onmessage = (_) => {
+  syncConfig();
+};
 
 function distance(p1: { x: number; y: number }, p2: { x: number; y: number }) {
   return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
@@ -173,11 +177,11 @@ type DrawingHand = {
 function matchHandPairs(
   handsById: Record<number, DrawingHand>,
   tfHands: Array<TFHand>,
-  frameId: number,
+  frameId: number
 ): [
   handByTFHandIndex: Array<DrawingHand | null>,
   missingHandIds: Array<number>,
-  ignoredTFIndices: Set<number>,
+  ignoredTFIndices: Set<number>
 ] {
   const ignoredTFIndices = new Set<number>();
 
@@ -216,7 +220,7 @@ function matchHandPairs(
 
       const distanceToOtherHand = distance(
         tfHands[tfHandIdx].keypoints[KeyPointID.IndexFingerMcp],
-        tfHands[otherHandIdx].keypoints[KeyPointID.IndexFingerMcp],
+        tfHands[otherHandIdx].keypoints[KeyPointID.IndexFingerMcp]
       );
 
       if (distanceToOtherHand < STATE.drawingConfig.minPxDistanceBetweenHands) {
@@ -263,7 +267,7 @@ export function handleFrame(
   const [handByTFHandIndex, missingHandIds, ignoredTFIndices] = matchHandPairs(
     handsById,
     tfHands,
-    frameId,
+    frameId
   );
 
   // For each missing hand that's old enough, delete it and send a "gone"
@@ -276,9 +280,8 @@ export function handleFrame(
       delete handsById[handId];
       STATE.ws.send(
         JSON.stringify({
-          type: "presence",
+          type: "presenceGone",
           id: handId,
-          gone: true,
         })
       );
     }
@@ -366,10 +369,10 @@ export function handleFrame(
 
     // Uncomment to debug gesture detection
     //console.log(
-      //"%c%f0.2%f0.2",
-      //"color: " + (isPeaceSign ? "green" : isPointing ? "red" : "blue"),
-      //angleBetweenPoints(indexPip3D, wrist3D, indexTip3D),
-      //angleBetweenPoints(middlePip3D, wrist3D, middleTip3D)
+    //"%c%f0.2%f0.2",
+    //"color: " + (isPeaceSign ? "green" : isPointing ? "red" : "blue"),
+    //angleBetweenPoints(indexPip3D, wrist3D, indexTip3D),
+    //angleBetweenPoints(middlePip3D, wrist3D, middleTip3D)
     //);
 
     if (!isPointing) {
@@ -378,8 +381,23 @@ export function handleFrame(
       // start a new one.
       if (
         hand.line &&
-        frameId - hand.line.lastSeenFrameId > STATE.drawingConfig.maxLineFrameGap
+        frameId - hand.line.lastSeenFrameId >
+          STATE.drawingConfig.maxLineFrameGap
       ) {
+        // If the line's overall duration was too short, send a message to
+        // delete it since it's probably just noise.
+        if (
+          hand.line.lastSeenFrameId - hand.line.firstFrameId <
+          STATE.drawingConfig.minLineFrames
+        ) {
+          ws.send(
+            JSON.stringify({
+              type: "lineDelete",
+              id: hand.line.id,
+            })
+          );
+        }
+
         hand.line = null;
       }
 
@@ -415,21 +433,17 @@ export function handleFrame(
     smoothedPoints = chaikinSmooth(smoothedPoints);
 
     // Send message containing this line's updated geometry
-    const shouldSendMessage =
-      frameId - hand.line.firstFrameId > STATE.drawingConfig.minLineFrames;
-    if (shouldSendMessage) {
-      STATE.ws.send(
-        JSON.stringify({
-          type: "line",
-          id: hand.line.id,
-          handId: hand.id,
-          points: smoothedPoints,
-        })
-      );
-    }
+    STATE.ws.send(
+      JSON.stringify({
+        type: "line",
+        id: hand.line.id,
+        handId: hand.id,
+        points: smoothedPoints,
+      })
+    );
 
     // Render debug visualization
-    ctx.strokeStyle = shouldSendMessage ? "white" : "gray";
+    ctx.strokeStyle = "white";
     ctx.beginPath();
     ctx.moveTo(smoothedPoints[0][0], smoothedPoints[0][1]);
     for (const point of smoothedPoints.slice(1)) {

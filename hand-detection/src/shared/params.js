@@ -50,7 +50,7 @@ export const STATE = {
 
     // How many frames must a line be captured for before we commit to creating
     // it and send it to the app?
-    minLineFrames: 5,
+    minLineFrames: 15,
 
     // What name appears next to cursors created by this instance?
     cursorName: "Figmate",
