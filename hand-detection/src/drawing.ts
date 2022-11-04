@@ -320,19 +320,6 @@ export function handleFrame(
       handsById[id] = hand;
     }
 
-    // Render hand id for debugging
-    ctx.resetTransform();
-    ctx.fillStyle = "white";
-    ctx.font = "40px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.beginPath();
-    ctx.arc(640 - wrist.x, wrist.y, 20, 0, 2 * Math.PI);
-    ctx.fillText(String(hand.id), 640 - wrist.x, wrist.y);
-    ctx.stroke();
-    ctx.translate(640, 0);
-    ctx.scale(-1, 1);
-
     // Detect finger up or down in absolute orientation
     const indexUp = indexTip.y < indexDip.y;
     const middleUp = middleTip.y < middleDip.y;
@@ -354,6 +341,20 @@ export function handleFrame(
       !middleCurled;
 
     const isPointing = !isPeaceSign && indexPointed && middleCurled;
+
+    // Render hand id and gesture for debugging
+    ctx.resetTransform();
+    ctx.fillStyle = isPeaceSign ? "green" : isPointing ? "red" : "white";
+    ctx.strokeStyle = isPeaceSign ? "green" : isPointing ? "red" : "white";
+    ctx.font = "40px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.beginPath();
+    ctx.arc(640 - wrist.x, wrist.y, 20, 0, 2 * Math.PI);
+    ctx.fillText(String(hand.id), 640 - wrist.x, wrist.y);
+    ctx.stroke();
+    ctx.translate(640, 0);
+    ctx.scale(-1, 1);
 
     // Regardless of whether they're gesturing, send a message containing the
     // indexBase's location for presence purposes.
