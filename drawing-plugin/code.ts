@@ -80,6 +80,7 @@ const getRandomColor = () => {
 const msgToHandId = (msg: Message) => {
   if (msg.type === "presence") return msg.id;
   if (msg.type === "line") return msg.handId;
+  if (msg.type === "peace") return msg.id;
 };
 
 const msgToRandomColor = (msg: Message): RGBType => {
@@ -109,9 +110,13 @@ enum PeaceState {
   PLACED_OBJECT,
   WAIT_FOR_DELAY,
 }
-let peaceState = PeaceState.DEFAULT;
-let lastNormalizedPointForPeace: number[];
-let peaceObjectId: string = "-1:-1";
+
+class PeaceInfo {
+  peaceState: PeaceState = PeaceState.DEFAULT
+  lastNormalizedPointForPeace: number[] = []
+  objectId : string = '-1:-1'
+}
+const peaceIdMap: Record<number, PeaceInfo> = {}
 
 /////// images
 
@@ -193,6 +198,11 @@ figma.ui.onmessage = (msg: Message) => {
   }
 
   if (msg.type === "peace") {
+    const handId = msgToHandId(msg);
+    if (handId == null) {
+      return;
+    }
+
     const normalizedPoint = [(640 - msg.point[0]) / 640, msg.point[1] / 480];
     // x: [left, right] => [640, 0]
     // y: [top, down] => [0, 480]
@@ -202,18 +212,25 @@ figma.ui.onmessage = (msg: Message) => {
       normalizedPoint[1] * bounds.height + bounds.y,
     ];
 
+    let peaceInfo : PeaceInfo;
+    if (peaceIdMap[handId] != null) {
+      peaceInfo = peaceIdMap[handId]
+    } else {
+      peaceInfo = {peaceState: PeaceState.DEFAULT, lastNormalizedPointForPeace: normalizedPoint, objectId: "-1:-1"}
+    }
+
     // States
     // DEFAULT
     // TRIGGERED_OBJECT --> we won't recognize anything for a bit
     // PLACED_OBJECT -> go back to default only if we are far away
-    switch (peaceState) {
+    switch (peaceInfo.peaceState) {
       case PeaceState.DEFAULT: {
         // We got a gesture and we haven't decided to place something yet!
         // Let's trigger something and register the point we triggered it at.
-        lastNormalizedPointForPeace = normalizedPoint;
-        peaceState = PeaceState.CREATING_OBJECT;
+        peaceInfo.lastNormalizedPointForPeace = normalizedPoint;
+        peaceInfo.peaceState = PeaceState.CREATING_OBJECT;
 
-        if (peaceObjectId === "-1:-1") {
+        if (peaceInfo.objectId === "-1:-1") {
           const randomNumber = Math.floor(
             Math.random() * componentHashes.length
           );
@@ -226,18 +243,19 @@ figma.ui.onmessage = (msg: Message) => {
               peaceObject.x = viewportPoint[0] - peaceObject.width / 2;
               peaceObject.y = viewportPoint[1] - peaceObject.height / 2;
 
-              peaceObjectId = peaceObject.id;
-              peaceState = PeaceState.TRIGGERED_OBJECT;
+              peaceInfo.objectId = peaceObject.id;
+              peaceInfo.peaceState = PeaceState.TRIGGERED_OBJECT;
 
               chronologicalInstanceIdsForSticker.push(peaceObject.id);
 
               setTimeout(function () {
-                if (peaceState == PeaceState.TRIGGERED_OBJECT) {
+                if (peaceInfo.peaceState == PeaceState.TRIGGERED_OBJECT) {
                   // Once we place the item, update the state.
                   peaceObject.x -= peaceObject.width / 4;
                   peaceObject.y -= peaceObject.height / 4;
                   peaceObject.rescale(1.5);
-                  peaceState = PeaceState.PLACED_OBJECT;
+                  peaceInfo.peaceState = PeaceState.PLACED_OBJECT;
+                  peaceIdMap[handId] = peaceInfo
                 }
               }, 1000);
             });
@@ -251,7 +269,7 @@ figma.ui.onmessage = (msg: Message) => {
       }
       case PeaceState.TRIGGERED_OBJECT: {
         // We have triggered setTimeout but it hasn't triggered yet. update the position of the object created
-        const peaceObject = figma.getNodeById(peaceObjectId) as InstanceNode;
+        const peaceObject = figma.getNodeById(peaceInfo.objectId) as InstanceNode;
         if (peaceObject != null) {
           peaceObject.x = viewportPoint[0] - peaceObject.width / 2;
           peaceObject.y = viewportPoint[1] - peaceObject.height / 2;
@@ -260,17 +278,18 @@ figma.ui.onmessage = (msg: Message) => {
       }
       case PeaceState.PLACED_OBJECT: {
         // We have now placed an object. we will now check the positions to ensure they are far away.
-        if (lastNormalizedPointForPeace != null) {
-          var a = lastNormalizedPointForPeace[0] - normalizedPoint[0];
-          var b = lastNormalizedPointForPeace[1] - normalizedPoint[1];
+        if (peaceInfo.lastNormalizedPointForPeace != null) {
+          var a = peaceInfo.lastNormalizedPointForPeace[0] - normalizedPoint[0]
+          var b = peaceInfo.lastNormalizedPointForPeace[1] - normalizedPoint[1]
 
           const sqLength = a * a + b * b;
           if (sqLength > 0.02) {
             // go back to default after a delay, and sit in a dummy state.
-            peaceState = PeaceState.WAIT_FOR_DELAY;
+            peaceInfo.peaceState = PeaceState.WAIT_FOR_DELAY
             setTimeout(function () {
-              peaceState = PeaceState.DEFAULT;
-              peaceObjectId = "-1:-1";
+              peaceInfo.peaceState = PeaceState.DEFAULT
+              peaceInfo.objectId = "-1:-1"
+              delete peaceIdMap[handId]
             }, 300);
           }
         }
@@ -280,6 +299,9 @@ figma.ui.onmessage = (msg: Message) => {
         // We have triggered setTimeout but it hasn't done anything yet. don't do anything here.
       }
     }
+
+    // reassign the object after changes
+    peaceIdMap[handId] = peaceInfo
   }
 };
 
