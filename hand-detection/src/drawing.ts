@@ -162,19 +162,25 @@ type DrawingHand = {
 // heuristic to determine which hand is which:
 // - For every combination of old hand and new hand, calculate the
 //   distance between their cursor locations (the base of the index finger).
-// - Go through those pairs in order of ascending distance.
-// - For each pair, if neither the old nor new hand have already been assigned,
-//   decide if we think it's a plausible match based on the distance and the
-//   last time we saw the old hand. If it is valid, record it and remove both
-//   the old and new hand from further consideration.
+// - Go through those pairs in order of ascending distance, and for each:
+//   - Make sure the new hand isn't too close to any already-assigned new hand.
+//     If it is, mark it as to-be-ignored, since TensorFlow sometimes creates
+//     spurious hands that are very close to real ones and it messes us up.
+//   - Otherwise, if neither the old nor new hand have already been assigned,
+//     decide if we think it's a plausible match based on the distance and the
+//     last time we saw the old hand. If it is valid, record it and remove both
+//     the old and new hand from further consideration.
 function matchHandPairs(
   handsById: Record<number, DrawingHand>,
   tfHands: Array<TFHand>,
-  frameId: number
+  frameId: number,
 ): [
   handByTFHandIndex: Array<DrawingHand | null>,
-  missingHandIds: Array<number>
+  missingHandIds: Array<number>,
+  ignoredTFIndices: Set<number>,
 ] {
+  const ignoredTFIndices = new Set<number>();
+
   const handPairs = sortBy(
     Object.entries(handsById).flatMap(([handId, hand]) =>
       tfHands.map((tfHand, tfHandIdx) => {
@@ -182,7 +188,7 @@ function matchHandPairs(
         return {
           handId: Number(handId),
           tfHandIdx,
-          distance: distance(
+          dist: distance(
             { x: hand.point[0], y: hand.point[1] },
             tfHandLocation
           ),
@@ -190,7 +196,7 @@ function matchHandPairs(
         };
       })
     ),
-    (pair) => pair.distance
+    (pair) => pair.dist
   );
 
   const seenHandIds = new Set<number>();
@@ -198,14 +204,34 @@ function matchHandPairs(
     tfHands.length
   ).fill(null);
 
-  for (const { handId, tfHandIdx, distance, location } of handPairs) {
-    if (seenHandIds.has(handId)) continue;
+  handLoop: for (const { handId, tfHandIdx, dist, location } of handPairs) {
+    // If this TF hand is already handled (ignored or assigned), move on
+    if (ignoredTFIndices.has(tfHandIdx)) continue;
     if (handByTFHandIndex[tfHandIdx] != null) continue;
+
+    // Otherwise, we need to check whether this conflicts with a
+    // previously-assigned hand before we do anything else.
+    for (let otherHandIdx = 0; otherHandIdx < tfHands.length; otherHandIdx++) {
+      if (handByTFHandIndex[otherHandIdx] == null) continue;
+
+      const distanceToOtherHand = distance(
+        tfHands[tfHandIdx].keypoints[KeyPointID.IndexFingerMcp],
+        tfHands[otherHandIdx].keypoints[KeyPointID.IndexFingerMcp],
+      );
+
+      if (distanceToOtherHand < STATE.drawingConfig.minPxDistanceBetweenHands) {
+        ignoredTFIndices.add(tfHandIdx);
+        continue handLoop;
+      }
+    }
+
+    // Since it didn't, now we can check whether `handId` is already handled.
+    if (seenHandIds.has(handId)) continue;
 
     const hand = handsById[handId];
     const framesElapsed = frameId - hand.lastSeenFrameId;
 
-    if (distance <= framesElapsed * STATE.drawingConfig.maxPxMovedPerFrame) {
+    if (dist <= framesElapsed * STATE.drawingConfig.maxPxMovedPerFrame) {
       seenHandIds.add(handId);
       handByTFHandIndex[tfHandIdx] = hand;
 
@@ -219,7 +245,7 @@ function matchHandPairs(
     Array.from(seenHandIds)
   );
 
-  return [handByTFHandIndex, missingHandIds];
+  return [handByTFHandIndex, missingHandIds, ignoredTFIndices];
 }
 
 let handsById: Record<number, DrawingHand> = {};
@@ -231,14 +257,13 @@ export function handleFrame(
   tfHands: Array<TFHand>,
   ctx: CanvasRenderingContext2D
 ) {
-  console.log('hi')
   frameId++;
   tfHands = (tfHands || []).filter((tfHand) => Object.keys(tfHand).length > 0);
 
-  const [handByTFHandIndex, missingHandIds] = matchHandPairs(
+  const [handByTFHandIndex, missingHandIds, ignoredTFIndices] = matchHandPairs(
     handsById,
     tfHands,
-    frameId
+    frameId,
   );
 
   // For each missing hand that's old enough, delete it and send a "gone"
@@ -260,6 +285,9 @@ export function handleFrame(
   }
 
   for (const [tfHandIndex, tfHand] of tfHands.entries()) {
+    if (ignoredTFIndices.has(tfHandIndex)) continue;
+
+    const wrist = tfHand.keypoints[KeyPointID.Wrist];
     const indexBase = tfHand.keypoints[KeyPointID.IndexFingerMcp];
     const indexDip = tfHand.keypoints[KeyPointID.IndexFingerDip];
     const indexTip = tfHand.keypoints[KeyPointID.IndexFingerTip];
@@ -288,6 +316,19 @@ export function handleFrame(
       };
       handsById[id] = hand;
     }
+
+    // Render hand id for debugging
+    ctx.resetTransform();
+    ctx.fillStyle = "white";
+    ctx.font = "40px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.beginPath();
+    ctx.arc(640 - wrist.x, wrist.y, 20, 0, 2 * Math.PI);
+    ctx.fillText(String(hand.id), 640 - wrist.x, wrist.y);
+    ctx.stroke();
+    ctx.translate(640, 0);
+    ctx.scale(-1, 1);
 
     // Detect finger up or down in absolute orientation
     const indexUp = indexTip.y < indexDip.y;

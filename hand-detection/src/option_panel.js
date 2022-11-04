@@ -88,24 +88,31 @@ function showDrawingConfigs(drawingConfigFolder) {
 
   drawingConfigFolder.add(
     params.STATE.drawingConfig,
+    'minPxDistanceBetweenHands',
+    0,
+    50,
+  ).step(1);
+
+  drawingConfigFolder.add(
+    params.STATE.drawingConfig,
     'maxHandFrameGap',
     0,
-    100,
-  ).step(5);
+    30,
+  ).step(1);
 
   drawingConfigFolder.add(
     params.STATE.drawingConfig,
     'maxLineFrameGap',
     0,
-    100,
-  ).step(5);
+    30,
+  ).step(1);
 
   drawingConfigFolder.add(
     params.STATE.drawingConfig,
     'minLineFrames',
     0,
-    50,
-  ).step(5);
+    30,
+  ).step(1);
 
   drawingConfigFolder.add(params.STATE.drawingConfig, "cursorName");
   

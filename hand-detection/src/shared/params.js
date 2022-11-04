@@ -38,15 +38,19 @@ export const STATE = {
     // one frame?
     maxPxMovedPerFrame: 50,
 
+    // What's the minimum acceptable distance between (the cursor point of)
+    // two hands?
+    minPxDistanceBetweenHands: 20,
+
     // How many frames is a hand allowed to disappear for before coming back?
-    maxHandFrameGap: 20,
+    maxHandFrameGap: 5,
 
     // How many frames is a hand allowed to not point before we end the line?
-    maxLineFrameGap: 20,
+    maxLineFrameGap: 5,
 
     // How many frames must a line be captured for before we commit to creating
     // it and send it to the app?
-    minLineFrames: 10,
+    minLineFrames: 5,
 
     // What name appears next to cursors created by this instance?
     cursorName: "Figmate",
